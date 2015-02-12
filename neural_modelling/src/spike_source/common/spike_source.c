@@ -23,8 +23,8 @@ bool load_dtcm ()
   }
 
   // Read system region
-  uint32_t spike_history_recording_region_size, neuron_potentials_recording_region_size, neuron_gsyns_recording_region_size;
-  if (!system_data_filled (region_start(0, address), flags, &spike_history_recording_region_size, &neuron_potentials_recording_region_size, &neuron_gsyns_recording_region_size))
+  uint32_t spike_history_recording_region_size, neuron_potentials_recording_region_size, neuron_gsyns_recording_region_size, num_profiling_samples;
+  if (!system_data_filled (region_start(0, address), flags, &spike_history_recording_region_size, &neuron_potentials_recording_region_size, &neuron_gsyns_recording_region_size, &num_profiling_samples))
     return (false);
 
   // Perform spike-source specific loading routine

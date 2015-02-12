@@ -16,6 +16,7 @@
 //---------------------------------------
 // Function declarations
 //---------------------------------------
+address_t copy_int8_lut(address_t start_address, uint32_t num_entries, int8_t *lut);
 address_t copy_int16_lut(address_t start_address, uint32_t num_entries, int16_t *lut);
 
 //---------------------------------------

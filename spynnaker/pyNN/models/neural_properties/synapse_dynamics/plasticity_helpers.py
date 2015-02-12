@@ -11,7 +11,7 @@ STDP_FIXED_POINT_ONE = (1 << 11)
 def float_to_fixed(value, fixed_point_one):
     return int(round(float(value) * float(fixed_point_one)))
 
-def write_exp_lut(spec, time_constant, size, shift, fixed_point_one = STDP_FIXED_POINT_ONE):
+def write_exp_lut(spec, time_constant, size, shift, fixed_point_one=STDP_FIXED_POINT_ONE, data_type=DataType.INT16):
     # Calculate time constant reciprocal
     time_constant_reciprocal = 1.0 / float(time_constant)
 
@@ -35,4 +35,4 @@ def write_exp_lut(spec, time_constant, size, shift, fixed_point_one = STDP_FIXED
 
         # Convert to fixed-point and write to spec
         spec.write_value(data=float_to_fixed(exp_float, fixed_point_one),
-                         data_type=DataType.INT16)
+                         data_type=data_type)

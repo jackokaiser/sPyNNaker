@@ -139,6 +139,9 @@ class SpikeSourcePoisson(AbstractSpikeSource):
         spec.write_value(data=spike_history_region_sz)
         spec.write_value(data=0)
         spec.write_value(data=0)
+        
+        # Profiling not supported
+        spec.write_value(data=0)
 
     def write_poisson_parameters(
             self, spec, processor_chip_x, processor_chip_y, processor_id,

@@ -8,6 +8,7 @@
 
 #include "spin-neuron-impl.h"
 #include "synapses_impl.h"
+#include "profiler.h"
 
 // Globals
 static uint32_t  dma_index;                                  //              4
@@ -42,7 +43,9 @@ void timer_callback (uint unused0, uint unused1)
 {
   use(unused0);
   use(unused1);
-
+  
+  profiler_write_entry(PROFILER_ENTER | PROFILER_TIMER);
+  
   time++;
 
   log_info("Timer tick %u", time);
@@ -57,9 +60,12 @@ void timer_callback (uint unused0, uint unused1)
 #endif  // SYNAPSE_BENCHMARK
 
     print_saturation_count();
-
-    // Finalise any recordings that are in progress, writing back the final amounts of samples recorded to SDRAM
+    
+    profiler_write_entry(PROFILER_EXIT | PROFILER_TIMER);
+    
+    // Finalise any recordings and profiles that are in progress, writing back the final amounts of samples recorded to SDRAM
     recording_finalise();
+    profiler_finalise();
     spin1_exit(0);
 
     uint spike_buffer_overflows = buffer_overflows();
@@ -109,6 +115,8 @@ void timer_callback (uint unused0, uint unused1)
   /*for (n = 0; n < num_neurons; n++) {
     iaf_psc_exp_dynamics(n);
   }*/
+  
+  profiler_write_entry(PROFILER_EXIT | PROFILER_TIMER);
 }
 
 void set_up_and_request_synaptic_dma_read()

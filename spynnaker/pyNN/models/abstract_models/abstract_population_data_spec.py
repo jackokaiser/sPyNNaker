@@ -7,9 +7,14 @@ from spynnaker.pyNN.models.abstract_models.abstract_synaptic_manager import \
 from spynnaker.pyNN.models.abstract_models.\
     abstract_partitionable_population_vertex import \
     AbstractPartitionablePopulationVertex
+from spynnaker.pyNN.utilities.utility_calls \
+    import get_region_base_address_offset
 
 import os
 import logging
+import numpy
+import struct
+
 from abc import ABCMeta
 from abc import abstractmethod
 from six import add_metaclass
@@ -34,6 +39,9 @@ class AbstractPopulationDataSpec(AbstractSynapticManager,
         self._executable_constant = None
         self._spikes_per_second = spikes_per_second
         self._ring_buffer_sigma = ring_buffer_sigma
+        
+        # By default, profiling is disabled
+        self.profiler_num_samples = 0
 
     @abstractmethod
     def get_parameters(self):
@@ -104,7 +112,63 @@ class AbstractPopulationDataSpec(AbstractSynapticManager,
             spec.reserve_memory_region(
                 region=constants.POPULATION_BASED_REGIONS.STDP_PARAMS.value,
                 size=stdp_params_sz, label='stdpParams')
+        
+        if self.profiler_num_samples != 0:
+            spec.reserve_memory_region(
+                region=constants.POPULATION_BASED_REGIONS.PROFILING.value,
+                size=(4 + (self.profiler_num_samples * 8)), label="profilerRegion")
+        
+    def get_profiling_data(self, txrx, placements, graph_mapper):
+        # Create a dictionary to hold each sub-vertex's profiling data
+        profile_data = {}
+        
+        subvertices = graph_mapper.get_subvertices_from_vertex(self)
+        for subvertex in subvertices:
+            placement = placements.get_placement_of_subvertex(subvertex)
+            (x, y, p) = placement.x, placement.y, placement.p
+            subvertex_slice = graph_mapper.get_subvertex_slice(subvertex)
+            lo_atom = subvertex_slice.lo_atom
+            logger.debug("Reading spikes from chip {}, {}, core {}, "
+                         "lo_atom {}".format(x, y, p, lo_atom))
 
+            # Get the App Data for the core
+            app_data_base_address = \
+                txrx.get_cpu_information_from_core(x, y, p).user[0]
+
+            # Get the position of the value buffer
+            profiling_region_base_address_offset = \
+                get_region_base_address_offset(app_data_base_address, 
+                                               constants.POPULATION_BASED_REGIONS.PROFILING.value)
+            profiling_region_base_address_buf = str(list(txrx.read_memory(
+                x, y, profiling_region_base_address_offset, 4))[0])
+            profiling_region_base_address = \
+                struct.unpack("<I", profiling_region_base_address_buf)[0]
+            profiling_region_base_address += app_data_base_address
+            
+            # Read the profiling data size
+            words_written_data =\
+                str(list(txrx.read_memory(
+                    x, y, profiling_region_base_address, 4))[0])
+            words_written = \
+                struct.unpack_from("<I", words_written_data)[0]
+            
+            # Read the profiling data
+            profiling_data = txrx.read_memory(
+                x, y, profiling_region_base_address + 4, words_written * 4)
+            
+            # Convert into byte array
+            profiling_data_list = bytearray()
+            for data in profiling_data:
+                profiling_data_list.extend(data)
+            
+            # Finally read into numpy
+            profiling_samples = numpy.asarray(profiling_data_list, dtype="uint8").view(dtype="<u8")
+            
+            # Add samples to dictionary
+            profile_data[placement] = profiling_samples
+            
+        return profile_data
+        
     def write_setup_info(self, spec, spike_history_region_sz,
                          neuron_potential_region_sz, gsyn_region_sz,
                          executable_constant):
@@ -143,6 +207,7 @@ class AbstractPopulationDataSpec(AbstractSynapticManager,
         spec.write_value(data=spike_history_region_sz)
         spec.write_value(data=neuron_potential_region_sz)
         spec.write_value(data=gsyn_region_sz)
+        spec.write_value(data=self.profiler_num_samples)
 
     def write_neuron_parameters(
             self, spec, processor_chip_x, processor_chip_y, processor_id,

@@ -1,4 +1,5 @@
 #include "spin-neuron-impl.h"
+#include "profiler.h"
 
 bool system_load_dtcm ()
 {
@@ -14,8 +15,8 @@ bool system_load_dtcm ()
     return (false);
   }
 
-  uint32_t spike_history_recording_region_size, neuron_potentials_recording_region_size, neuron_gsyns_recording_region_size;
-  if (!system_data_filled (region_start(0, address), flags, &spike_history_recording_region_size, &neuron_potentials_recording_region_size, &neuron_gsyns_recording_region_size))
+  uint32_t spike_history_recording_region_size, neuron_potentials_recording_region_size, neuron_gsyns_recording_region_size, num_profiling_samples;
+  if (!system_data_filled (region_start(0, address), flags, &spike_history_recording_region_size, &neuron_potentials_recording_region_size, &neuron_gsyns_recording_region_size, &num_profiling_samples))
     return (false);
 
   if (!neural_data_filled (region_start(1, address), flags))  // modified for use with simon's data blob
@@ -46,7 +47,10 @@ bool system_load_dtcm ()
   if (!recording_data_filled (region_start(9, address), flags, e_recording_channel_neuron_gsyn, neuron_gsyns_recording_region_size))
     return (false);
 
-
+  // Setup profiler
+  profiler_read_region(region_start(10, address));
+  profiler_init(num_profiling_samples);
+  
   log_info("system_load_dtcm: completed successfully");
 
   return (true);

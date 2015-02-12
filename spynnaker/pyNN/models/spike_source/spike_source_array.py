@@ -205,6 +205,9 @@ class SpikeSourceArray(AbstractSpikeSource):
         spec.write_value(data=spike_history_region_sz)
         spec.write_value(data=0)
         spec.write_value(data=0)
+        
+        # Profiling not supported
+        spec.write_value(data=0)
 
     def write_block_index_region(self, spec, placement,
                                  num_neurons, table_entries):

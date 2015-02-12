@@ -185,8 +185,6 @@ void process_plastic_synapses (address_t plastic, address_t fixed, ring_entry_t 
   // Get last pre-synaptic event from event history
   const uint32_t last_pre_time = event_history->prev_time;
   const pre_trace_t last_pre_trace = event_history->prev_trace;
-  
-
 
   // Update pre-synaptic trace
   plastic_runtime_log_info("Adding pre-synaptic event to trace at time:%u", time);

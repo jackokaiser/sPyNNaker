@@ -12,6 +12,8 @@ from pacman.model.partitionable_graph.partitionable_edge \
 from pacman.utilities import utility_calls as pacman_utility_calls
 from spynnaker.pyNN.models.abstract_models.abstract_recordable_vertex import \
     AbstractRecordableVertex
+from spynnaker.pyNN.models.abstract_models.abstract_population_data_spec import \
+    AbstractPopulationDataSpec
 
 from pyNN.space import Space
 
@@ -674,7 +676,23 @@ class Population(object):
             raise exceptions.ConfigurationException(
                 "This population does not support its max_atoms_per_core "
                 "variable being adjusted by the end user. Sorry")
-
+    
+    # NONE PYNN API CALL
+    def profile(self, num_samples):
+        if not isinstance(self._vertex, AbstractPopulationDataSpec):
+            raise Exception("This population does not support profiling!")
+        else:
+            self._vertex.profiler_num_samples = num_samples
+    
+    def get_profiling_data(self):
+        if not isinstance(self._vertex, AbstractPopulationDataSpec):
+            raise Exception("This population does not support profiling!")
+        else:
+            return self._vertex.get_profiling_data(
+                txrx=self._spinnaker.transceiver,
+                placements=self._spinnaker.placements,
+                graph_mapper=self._spinnaker.graph_mapper)
+            
     @property
     def size(self):
         return self._vertex.n_atoms

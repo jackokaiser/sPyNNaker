@@ -64,7 +64,8 @@ void system_load_params(address_t address) {
 }
 
 bool system_data_filled (address_t address, uint32_t flags,
-                         uint32_t *spike_history_recording_region_size, uint32_t *neuron_potentials_recording_region_size, uint32_t *neuron_gsyns_recording_region_size)
+                         uint32_t *spike_history_recording_region_size, uint32_t *neuron_potentials_recording_region_size, uint32_t *neuron_gsyns_recording_region_size,
+                         uint32_t *num_profiling_samples)
 {
   use(flags);
 
@@ -77,9 +78,11 @@ bool system_data_filled (address_t address, uint32_t flags,
   *spike_history_recording_region_size = address[4];
   *neuron_potentials_recording_region_size = address[5];
   *neuron_gsyns_recording_region_size = address[6];
+  *num_profiling_samples = address[7];
   log_info("\ttimer period = %u, simulation ticks = %u", timer_period, simulation_ticks);
   log_info("\tsystem word = %08x, spike history recording region size = %u, neuron potential recording region size = %u, neuron gsyn recording region size = %u", system_word,
            *spike_history_recording_region_size, *neuron_potentials_recording_region_size, *neuron_gsyns_recording_region_size);
+  log_info("\tnum_profiling_samples = %u", *num_profiling_samples);
 
   return (true);
 }

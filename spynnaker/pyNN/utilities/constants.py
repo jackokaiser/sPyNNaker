@@ -5,7 +5,7 @@ from enum import Enum
 
 POSSION_SIGMA_SUMMATION_LIMIT = 3.0
 # Some constants
-SETUP_SIZE = 28  # Single word of info with flags, etc.
+SETUP_SIZE = 32  # Single word of info with flags, etc.
                  # plus the lengths of each of the output buffer
                  # regions in bytes
 
@@ -96,4 +96,5 @@ POPULATION_BASED_REGIONS = Enum(
            ('STDP_PARAMS', 6),
            ('SPIKE_HISTORY', 7),
            ('POTENTIAL_HISTORY', 8),
-           ('GSYN_HISTORY', 9)])
+           ('GSYN_HISTORY', 9),
+           ('PROFILING', 10)])

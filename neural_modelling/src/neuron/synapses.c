@@ -413,7 +413,7 @@ void print_weight (index_t synapse_type, weight_t w)
 
 void print_ring_buffers (void)
 {
-  counter_t d, n, t;
+  /*counter_t d, n, t;
   bool empty;
 
   printf ("Ring Buffer\n");
@@ -440,7 +440,7 @@ void print_ring_buffers (void)
       }
     }
   }
-  printf ("-----------------------------------------------------------------\n");
+  printf ("-----------------------------------------------------------------\n");*/
 }
 
 void print_master_population (void)
@@ -483,7 +483,7 @@ void print_synaptic_rows (uint32_t* rows)
 
 void print_synaptic_row (synaptic_row_t synaptic_row)
 {
-  printf ("\nSynaptic row, at address %08x Num plastic words:%u\n", (uint32_t)synaptic_row, plastic_size(synaptic_row));
+  /*printf ("\nSynaptic row, at address %08x Num plastic words:%u\n", (uint32_t)synaptic_row, plastic_size(synaptic_row));
   if (synaptic_row == NULL)
   {
     return;
@@ -518,7 +518,7 @@ void print_synaptic_row (synaptic_row_t synaptic_row)
     print_plastic_synapses(plastic, fixed);
   }
 
-  printf ("----------------------------------------\n");
+  printf ("----------------------------------------\n");*/
 }
 
 uint32_t* generate_synfire_chain(uint32_t* start, uint32_t delay, uint32_t p)
@@ -576,7 +576,7 @@ synaptic_row_t generate_random_synaptic_row (void)
 
 void print_currents (void)
 {
-  bool empty = true;
+  /*bool empty = true;
   current_t c;
 
   printf ("Currents\n");
@@ -601,7 +601,7 @@ void print_currents (void)
       }
     }
     printf ("-------------------------------------\n");
-  }
+  }*/
 }
 
 #else /*DEBUG*/

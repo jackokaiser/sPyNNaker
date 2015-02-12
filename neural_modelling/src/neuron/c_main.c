@@ -67,8 +67,6 @@ void initialize_buffers (void)
   initialize_spike_buffer (IN_SPIKE_SIZE);
   initialise_plasticity_buffers();
   initialise_dma_buffers();
-
-
   //log_info("resetting of buffers completed");
 }
 

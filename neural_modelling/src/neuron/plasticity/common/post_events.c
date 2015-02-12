@@ -16,7 +16,7 @@ void post_init_buffers()
   // Check allocations succeeded
   if(post_event_history == NULL)
   {
-    sentinel("Unable to allocate global STDP structures - Out of DTCM");
+    sentinel("Unable to allocate %u bytes global STDP structures for %u neurons - Out of DTCM", num_neurons * sizeof(post_event_history_t), num_neurons);
   }
   
   // Loop through neurons

@@ -33,7 +33,7 @@ void random_bit_field     (bit_field_t b, size_t s);
 
 // Function declarations for configuration.c:
 bool system_header_filled         (uint32_t* address, uint32_t* version, uint32_t flags);
-bool system_data_filled           (uint32_t* address, uint32_t flags, uint32_t *spike_history_recording_region_size, uint32_t *neuron_potentials_recording_region_size, uint32_t *neuron_gsyns_recording_region_size);
+bool system_data_filled           (uint32_t* address, uint32_t flags, uint32_t *spike_history_recording_region_size, uint32_t *neuron_potentials_recording_region_size, uint32_t *neuron_gsyns_recording_region_size, uint32_t *num_profiling_samples);
 bool system_data_test_bit         (system_data_e bit);
 bool check_magic_number           (uint32_t* start);
 bool vector_copied                (uint32_t*, uint32_t, uint32_t*, uint32_t);
