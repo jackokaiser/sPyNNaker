@@ -44,7 +44,7 @@ void timer_callback (uint unused0, uint unused1)
   use(unused0);
   use(unused1);
   
-  profiler_write_entry(PROFILER_ENTER | PROFILER_TIMER);
+  profiler_write_entry_disable_irq_fiq(PROFILER_ENTER | PROFILER_TIMER);
   
   time++;
 
@@ -61,7 +61,7 @@ void timer_callback (uint unused0, uint unused1)
 
     print_saturation_count();
     
-    profiler_write_entry(PROFILER_EXIT | PROFILER_TIMER);
+    profiler_write_entry_disable_irq_fiq(PROFILER_EXIT | PROFILER_TIMER);
     
     // Finalise any recordings and profiles that are in progress, writing back the final amounts of samples recorded to SDRAM
     recording_finalise();
@@ -116,7 +116,7 @@ void timer_callback (uint unused0, uint unused1)
     iaf_psc_exp_dynamics(n);
   }*/
   
-  profiler_write_entry(PROFILER_EXIT | PROFILER_TIMER);
+  profiler_write_entry_disable_irq_fiq(PROFILER_EXIT | PROFILER_TIMER);
 }
 
 void set_up_and_request_synaptic_dma_read()
@@ -183,6 +183,7 @@ void dma_callback(uint unused, uint tag)
   use(unused);
 
   log_info("DMA transfer complete tag %u", tag);
+  
 //#ifdef DMA_DEBUG
 //  io_printf(IO_BUF, "DMA transfer complete with tag %u\n", tag);
 //#endif
@@ -190,6 +191,8 @@ void dma_callback(uint unused, uint tag)
   // If this DMA is the result of a read
   if(tag == DMA_TAG_READ_SYNAPTIC_ROW)
   {
+    profiler_write_entry_disable_fiq(PROFILER_ENTER | PROFILER_DMA_READ);
+    
     // **NOTE** may need critical section to handle interaction with ring_buffer_transfer
 
     // Extract originating spike from start of DMA buffer
@@ -211,6 +214,8 @@ void dma_callback(uint unused, uint tag)
     // **NOTE** writeback should occur here so DMA is performed BEFORE setting up
     // Next synaptic row read therefore, we need 3 buffers rather than 2
     set_up_and_request_synaptic_dma_read();
+    
+    profiler_write_entry_disable_fiq(PROFILER_EXIT | PROFILER_DMA_READ);
   }
   // Otherwise, if it ISN'T the result of a plastic region write
   else if(tag != DMA_TAG_WRITE_PLASTIC_REGION)
@@ -223,7 +228,8 @@ void dma_callback(uint unused, uint tag)
 void incoming_spike_callback (uint key, uint payload)
 {
   use(payload);
-
+  profiler_write_entry(PROFILER_ENTER | PROFILER_INCOMING_SPIKE);
+  
 #if defined(DEBUG) || defined(SPIKE_DEBUG) || defined(DMA_DEBUG)
   io_printf(IO_BUF, "Received spike %x at %d, DMA Busy = %d\n", key, time, dma_busy);
 #endif // SPIKE_DEBUG || DMA_DEBUG
@@ -245,6 +251,8 @@ void incoming_spike_callback (uint key, uint payload)
   } else {
     log_info("Could not add spike");
   }
+  
+  profiler_write_entry(PROFILER_EXIT | PROFILER_INCOMING_SPIKE);
 
 }
 
