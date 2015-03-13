@@ -42,15 +42,23 @@ uint simulation_rtr_entry = 0;
 
 address_t system_load_sram()
 {
-  // Get pointer to 1st virtual processor info struct in SRAM
-  vcpu_t *sark_virtual_processor_info = (vcpu_t*)SV_VCPU;
-
-  log_info("%08x", &sark_virtual_processor_info[spin1_get_core_id()].user0);
+  uint core_id = spin1_get_core_id();
 
   // Get the address this core's DTCM data starts at from the user data member of the structure associated with this virtual processor
-  address_t address = (address_t)sark_virtual_processor_info[spin1_get_core_id()].user0;
+  address_t address = (address_t)sv_vcpu[core_id].user0;
 
-  log_info("SDRAM data begins at address:%08x", address);
+  if(address != NULL)
+  {
+    log_info("Based on SRAM user field, SDRAM data for core %u begins at %08x", core_id, address);
+  }
+  else
+  {
+    uint app_id = sark_app_id();
+    
+    address = (address_t*)sv->alloc_tag[(app_id << 8) + core_id];
+    log_info("Based on allocated tag, SDRAM for app_id %u running on core %u begins at %08x", app_id, core_id, address);
+  }
+  
 
   return address;
 }
