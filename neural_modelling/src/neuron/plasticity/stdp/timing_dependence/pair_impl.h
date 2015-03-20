@@ -101,13 +101,12 @@ static inline update_state_t timing_apply_pre_spike(uint32_t time, pre_trace_t t
   if(time_since_last_post > 0)
   {
     int32_t exponential_decay = DECAY_LOOKUP_TAU_MINUS(time_since_last_post);
-    int32_t decayed_o1 = STDP_FIXED_MUL_16X16(last_post_trace, exponential_decay);
     
-    plastic_runtime_log_info("\t\t\ttime_since_last_post_event=%u, decayed_o1=%d\n", 
-                            time_since_last_post, decayed_o1);
+    plastic_runtime_log_info("\t\t\ttime_since_last_post_event=%u, exponential_decay=%d\n", 
+                            time_since_last_post, exponential_decay);
     
     // Apply depression to state (which is a weight_state)
-    return weight_apply_depression(previous_state, decayed_o1);
+    return weight_mac_depression(previous_state, last_post_trace, exponential_decay);
   }
   else
   {
@@ -129,13 +128,13 @@ static inline update_state_t timing_apply_post_spike(uint32_t time, post_trace_t
   if(time_since_last_pre > 0)
   {
     int32_t exponential_decay = DECAY_LOOKUP_TAU_PLUS(time_since_last_pre);
-    int32_t decayed_r1 = STDP_FIXED_MUL_16X16(last_pre_trace, exponential_decay);
+    //int32_t decayed_r1 = STDP_FIXED_MUL_16X16(last_pre_trace, exponential_decay);
 
-    plastic_runtime_log_info("\t\t\ttime_since_last_pre_event=%u, decayed_r1=%d\n", 
-                            time_since_last_pre, decayed_r1);
+    plastic_runtime_log_info("\t\t\ttime_since_last_pre_event=%u, exponential_decay=%d\n", 
+                            time_since_last_pre, exponential_decay);
     
     // Apply potentiation to state (which is a weight_state)
-    return weight_apply_potentiation(previous_state, decayed_r1);
+    return weight_mac_potentiation(previous_state, last_pre_trace, exponential_decay);
   }
   else
   {
