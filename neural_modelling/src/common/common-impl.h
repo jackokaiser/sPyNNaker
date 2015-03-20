@@ -54,13 +54,8 @@ bool recording_record(recording_channel_e channel, void *data, uint32_t size_byt
 void recording_finalise();
 
 // Defined in spikes.c
-bool add_spike               (spike_t e);
-bool next_spike              (spike_t* e);
 void initialize_spike_buffer (uint size);
 void print_spike_buffer      (void);
-bool get_next_spike_if_equals(spike_t s);
-uint32_t n_spikes_in_buffer(void);
-counter_t buffer_overflows   (void);
 
 // Defined in out_spikes.c
 void  reset_out_spikes      (void);

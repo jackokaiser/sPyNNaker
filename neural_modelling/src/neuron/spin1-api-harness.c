@@ -9,6 +9,7 @@
 #include "spin-neuron-impl.h"
 #include "synapses_impl.h"
 #include "profiler.h"
+#include "../common/spikes_impl.h"
 
 // Globals
 static uint32_t  dma_index;                                  //              4
@@ -123,8 +124,7 @@ void set_up_and_request_synaptic_dma_read()
 {
   // If there's more incoming spikes
   spike_t s;
-  uint32_t setup_done = FALSE;
-  while (!setup_done && next_spike (& s))
+  while (next_spike (& s))
   {
 #ifdef SPIKE_DEBUG
     io_printf(IO_BUF, "Checking for row for spike %x\n", s);
@@ -137,7 +137,6 @@ void set_up_and_request_synaptic_dma_read()
       // Write the SDRAM address and originating spike to the beginning of dma buffer
       current_dma_buffer()[0] = (uint32_t)address;
       current_dma_buffer()[1] = s;
-      setup_done = TRUE;
 //#ifdef DMA_DEBUG
 //      io_printf(IO_BUF, "Processing spike %x via DMA\n", s);
 //#endif
@@ -147,19 +146,16 @@ void set_up_and_request_synaptic_dma_read()
 
       // Flip DMA buffers
       swap_dma_buffers();
+      
+      return;
     }
   }
 
-  // If the setup was not done, and there are no more spikes,
-  // stop trying to set up synaptic dmas
-  if (!setup_done)
-  {
 #if defined(SPIKE_DEBUG) || defined(DMA_DEBUG)
-    io_printf(IO_BUF, "DMA not busy\n");
+  io_printf(IO_BUF, "DMA not busy\n");
 #endif // SPIKE_DEBUG || DMA_DEBUG
-    log_info("DMA not busy");
-    dma_busy = FALSE;
-  }
+  log_info("DMA not busy");
+  dma_busy = FALSE;
 }
 
 void set_up_and_request_synaptic_dma_write()
@@ -199,17 +195,20 @@ void dma_callback(uint unused, uint tag)
     spike_t s = originating_spike(next_dma_buffer());
 
     // Process synaptic row repeatedly
-    bool subsequent_spikes;
-    do
-    {
+    //bool subsequent_spikes;
+    //do
+    //{
       // Are there any more incoming spikes from the same pre-synaptic neuron?
-      subsequent_spikes = get_next_spike_if_equals(s);
+      //subsequent_spikes = get_next_spike_if_equals(s);
 
-      // Process synaptic row, writing it back if it's the last time it's going to be processed
+#ifdef DEBUG
       print_synaptic_row(next_dma_buffer());
-      process_synaptic_row(next_dma_buffer(), !subsequent_spikes);
+#endif  // DEBUG
+      
+      // Process synaptic row, writing it back if it's the last time it's going to be processed
+      process_synaptic_row(next_dma_buffer(), true);
 
-    } while (subsequent_spikes);
+    //} while (subsequent_spikes);
 
     // **NOTE** writeback should occur here so DMA is performed BEFORE setting up
     // Next synaptic row read therefore, we need 3 buffers rather than 2
