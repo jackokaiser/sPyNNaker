@@ -59,6 +59,7 @@
 #include "spin-neuron-impl.h"
 
 #include "synapses_impl.h"
+#include "profiler.h"
 
 // **NOTE** synapse shaping implementation gets included by compiler
 
@@ -268,8 +269,10 @@ void process_synaptic_row (synaptic_row_t row, bool write)
     address_t plastic = plastic_region(row);
 
     // Process any plastic synapses
+    profiler_write_entry_disable_fiq(PROFILER_ENTER | PROFILER_PROCESS_PLASTIC_SYNAPSES);
     process_plastic_synapses(plastic, fixed, ring_buffer);
-
+    profiler_write_entry_disable_fiq(PROFILER_EXIT | PROFILER_PROCESS_PLASTIC_SYNAPSES);
+    
     // Perform DMA writeback
     // **NOTE** this isn't great as we're assuming something about
     // Structure of harness DMA implementation i.e. that row == next_dma_buffer()
