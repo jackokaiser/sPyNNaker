@@ -5,6 +5,8 @@ from pacman.utilities import reports as pacman_reports
 from pacman.operations.partition_algorithms.basic_partitioner import \
     BasicPartitioner
 from spynnaker.pyNN.buffer_management.buffer_manager import BufferManager
+from spynnaker.pyNN.buffer_management.buffer_sending_from_host_manager import \
+    BufferSendingFromHostManager
 from spynnaker.pyNN.models.abstract_models.abstract_comm_models.\
     abstract_sends_buffers_from_host_partitionable_vertex import \
     AbstractSendsBuffersFromHostPartitionableVertex
@@ -321,9 +323,11 @@ class Spinnaker(SpynnakerConfiguration, SpynnakerCommsFunctions):
                 subvertex = next(iter(
                     self._graph_mapper.get_subvertices_from_vertex(key)))
                 tag = self._tags.get_ip_tags_for_vertex(subvertex)[0]
-                self._buffer_managers[key] = BufferManager(
+                self._general_buffer_manager = BufferManager()
+                self._buffer_managers[key] = BufferSendingFromHostManager(
                     self._placements, self._routing_infos, self.graph_mapper,
-                    tag.port, tag.ip_address, self._txrx)
+                    tag.port, tag.ip_address, self._txrx,
+                    self._general_buffer_manager)
 
             # locate vertices which need to be buffer receiving managed
             if isinstance(partitionable_vertex,
@@ -340,8 +344,9 @@ class Spinnaker(SpynnakerConfiguration, SpynnakerCommsFunctions):
                                    "which require buffering")
         for buffer_manager_key in self._buffer_managers.keys():
             self._txrx.register_listener(
-                self._buffer_managers[buffer_manager_key].
-                receive_buffer_command_message,
+                # self._buffer_managers[buffer_manager_key].
+                # receive_buffer_command_message,
+                self._general_buffer_manager.receive_buffer_command_message,
                 self._buffer_managers[buffer_manager_key].port,
                 self._buffer_managers[buffer_manager_key].local_host,
                 spinnman_constants.CONNECTION_TYPE.UDP_IPTAG,

@@ -77,6 +77,7 @@ class SpynnakerConfiguration(object):
         # comms stuff
         self._default_buffer_ip_port = None
         self._default_buffer_ip_address = None
+        self._general_buffer_manager = None
         self._buffer_managers = dict()
 
         # database objects

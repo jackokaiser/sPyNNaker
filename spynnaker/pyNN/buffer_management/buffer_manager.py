@@ -1,72 +1,24 @@
-import struct
+from spinnman import exceptions as spinnman_exceptions
+
 import threading
 import logging
 
-from pacman.utilities.progress_bar import ProgressBar
-from spinnman import exceptions as spinnman_exceptions
-from spynnaker.pyNN import exceptions as spynnaker_exceptions
-from spinnman.data.little_endian_byte_array_byte_reader \
-    import LittleEndianByteArrayByteReader
-from spinnman.messages.sdp.sdp_header import SDPHeader
-from spinnman.messages.sdp.sdp_message import SDPMessage
-from spinnman.messages.sdp.sdp_flag import SDPFlag
-from spinnman.messages.eieio.abstract_eieio_packets.create_eieio_packets \
-    import create_class_from_reader
-from spynnaker.pyNN.buffer_management.buffer_recieve_thread import \
-    BufferReceiveThread
-from spinnman.messages.eieio.command_objects.spinnaker_request_buffers import \
-    SpinnakerRequestBuffers
-from spinnman.messages.eieio.command_objects.spinnaker_request_read_data \
-    import SpinnakerRequestReadData
-from spinnman.messages.eieio.command_objects.padding_request import \
-    PaddingRequest
-from spinnman.messages.eieio.command_objects.event_stop_request \
-    import EventStopRequest
-from spinnman.messages.eieio.command_objects.host_send_sequenced_data\
-    import HostSendSequencedData
-from spinnman.messages.eieio.command_objects.start_requests \
-    import StartRequests
-from spinnman.messages.eieio.command_objects.stop_requests \
-    import StopRequests
-from spynnaker.pyNN.utilities import utility_calls
-
-
 logger = logging.getLogger(__name__)
-# logger.setLevel(logging.DEBUG)
 
 
 class BufferManager(object):
 
-    def __init__(self, placements, routing_key_infos, graph_mapper,
-                 port, local_host, transceiver):
-        self._placements = placements
-        self._routing_key_infos = routing_key_infos
-        self._graph_mapper = graph_mapper
-        self._port = port
-        self._local_host = local_host
-        self._transceiver = transceiver
-        self._receive_vertices = dict()
-        self._sender_vertices = dict()
-        self._receive_thread = BufferReceiveThread()
-        self._receive_thread.start()
-        self._thread_lock = threading.Lock()
-        self._routing_infos = None
-        self._partitioned_graph = None
+    def __init__(self):
+        self._thread_locks = dict()
+        self._registered_listeners = dict()
+        pass
 
-    @property
-    def port(self):
-        return self._port
-
-    @property
-    def local_host(self):
-        return self._local_host
-
-    def kill_threads(self):
-        """ turns off the threads as they are no longer needed
-
-        :return:
-        """
-        self._receive_thread.stop()
+    def register_listener(self, class_listened, function):
+        if class_listened not in self._registered_listeners:
+            self._registered_listeners[class_listened] = list([function])
+            self._thread_locks[class_listened] = threading.Lock()
+        else:
+            self._registered_listeners[class_listened].append(function)
 
     def receive_buffer_command_message(self, packet):
         """ received a eieio message from the port which this manager manages
@@ -76,244 +28,22 @@ class BufferManager(object):
         :type packet:
         :return:
         """
-        with self._thread_lock:
-            if isinstance(packet, SpinnakerRequestBuffers):
-                key = (packet.x, packet.y, packet.p)
-                if key in self._sender_vertices.keys():
-                    logger.debug("received packet sequence: {1:d}, "
-                                 "space available: {0:d}".format(
-                                     packet.space_available,
-                                     packet.sequence_no))
-                    data_requests = \
-                        self._sender_vertices[key].get_next_set_of_packets(
-                            packet.space_available, packet.region_id,
-                            packet.sequence_no, self._routing_infos,
-                            self._partitioned_graph)
-                    # data_requests = list()
-                    space_used = 0
-                    for buffers in data_requests:
-                        logger.debug("packet to be sent length: {0:d}".format(
-                            buffers.length))
-                        space_used += buffers.length
-                    logger.debug("received packet sequence: {3:d}, "
-                                 "space available: {0:d}, data requests: "
-                                 "{1:d}, total length: {2:d}".format(
-                                     packet.space_available,
-                                     len(data_requests),
-                                     space_used, packet.sequence_no))
-                    if len(data_requests) != 0:
-                        for buffers in data_requests:
-                            self._send_request(
-                                packet.x, packet.y, packet.p, buffers)
-                            # data_request = {'data': buffers,
-                            #                 'x': packet.x,
-                            #                 'y': packet.y,
-                            #                 'p': packet.p}
-                            # self._add_request(data_request)
-
-            elif isinstance(packet, SpinnakerRequestReadData):
-                pass
-            else:
-                raise spinnman_exceptions.SpinnmanInvalidPacketException(
+        if type(packet) in self._registered_listeners.keys():
+            with self._thread_locks[type(packet)]:
+                for listener in self._registered_listeners[type(packet)]:
+                    listener(packet)
+        else:
+            raise spinnman_exceptions.SpinnmanInvalidPacketException(
                     packet.__class__,
                     "The command packet is invalid for buffer management")
 
-    def add_received_vertex(self, manageable_vertex):
-        """ adds a partitioned vertex into the managed list for vertices
-        which require buffers to be extracted from them during runtime
-
-        :param manageable_vertex: the vertex to be managed
-        :return:
-        """
-        vertices = \
-            self._graph_mapper.get_subvertices_from_vertex(manageable_vertex)
-        for vertex in vertices:
-            placement = \
-                self._placements.get_placement_of_subvertex(vertex)
-            self._receive_vertices[(placement.x, placement.y, placement.p)] = \
-                vertex
-
-    def add_sender_vertex(self, manageable_vertex):
-        """ adds a partitioned vertex into the managed list for vertices
-        which require buffers to be sent to them during runtime
-
-        :param manageable_vertex: the vertex to be managed
-        :return:
-        """
-        vertices = \
-            self._graph_mapper.get_subvertices_from_vertex(manageable_vertex)
-        for vertex in vertices:
-            placement = \
-                self._placements.get_placement_of_subvertex(vertex)
-            self._sender_vertices[(placement.x, placement.y, placement.p)] = \
-                vertex
-
-    def contains_sender_vertices(self):
-        """ helper method which determines if the buffer manager is currently
-        managing verices which require buffers to be sent to them
-
-        :return:
-        """
-        if len(self._sender_vertices) == 0:
-            return False
-        return True
-
-    def load_initial_buffers(self, routing_infos, partitioned_graph):
-        """ takes all the sender vertices and loads the initial buffers.
-            In addition stores the routing infos and the partitioned graph
-            objects, after they are generated, when loading the initial buffers
-
-        :param routing_infos:
-        :param partitioned_graph: A partitioned_graph of partitioned vertices \
-        and edges from the partitionable_graph
-        :type partitioned_graph: :py:class: \
-            `pacman.model.subgraph.subgraph.Subgraph`
-        :return: None
-        """
-        self._routing_infos = routing_infos
-        self._partitioned_graph = partitioned_graph
-        progress_bar = ProgressBar(len(self._sender_vertices),
-                                   "on loading buffer dependant vertices")
-        for send_vertex_key in self._sender_vertices.keys():
-            sender_vertex = self._sender_vertices[send_vertex_key]
-            for region_id in \
-                    sender_vertex.sender_buffer_collection.regions_managed:
-                self._handle_a_initial_buffer_for_region(
-                    region_id, sender_vertex)
-            progress_bar.update()
-        progress_bar.end()
-
-    def _handle_a_initial_buffer_for_region(self, region_id, sender_vertex):
-        """ collects the initial regions buffered data and transmits it to the
-        board based chip's memory
-
-        :param region_id: the region id to load a buffer for
-        :type region_id: int
-        :param sender_vertex: the vertex to load a buffer for
-        :type sender_vertex: a instance of partitionedVertex
-        :return:
-        """
-        region_size = \
-            sender_vertex.sender_buffer_collection.get_size_of_region(
-                region_id)
-
-        # create a buffer packet to emulate core asking for region data
-        placement_of_partitioned_vertex = \
-            self._placements.get_placement_of_subvertex(sender_vertex)
-
-        # create a list of buffers to be loaded on the machine, given the region
-        # the size and the sequence number
-        data_requests = sender_vertex.get_next_set_of_packets(
-            region_size, region_id, None, self._routing_infos, self._partitioned_graph)
-
-        # fetch region base address
-        self._locate_region_address(region_id, sender_vertex)
-
-        # check if list is empty and if so raise exception
-        if len(data_requests) == 0:
-            raise spynnaker_exceptions.BufferableRegionTooSmall(
-                "buffer region {0:d} in subvertex {1:s} is too small to "
-                "contain any type of packet".format(region_id, sender_vertex))
-        space_used = 0
-        base_address = sender_vertex.sender_buffer_collection.\
-            get_region_base_address_for(region_id)
-        # send each data request
-        for data_request in data_requests:
-            # write memory to chip
-            logger.debug("writing one packet with length {0:d}".format(
-                data_request.length))
-            data_to_be_written = data_request.get_eieio_message_as_byte_array()
-            self._transceiver.write_memory(
-                placement_of_partitioned_vertex.x,
-                placement_of_partitioned_vertex.y,
-                base_address + space_used, data_to_be_written)
-
-            space_used += len(data_to_be_written)
-
-        # add padding at the end of memory region during initial memory write
-        length_to_be_padded = region_size - space_used
-        padding_packet = PaddingRequest(length_to_be_padded)
-        padding_packet_bytes = padding_packet.get_eieio_message_as_byte_array()
-        logger.debug("writing padding with length {0:d}".format(
-            len(padding_packet_bytes)))
-        self._transceiver.write_memory(
-            placement_of_partitioned_vertex.x,
-            placement_of_partitioned_vertex.y,
-            base_address + space_used, padding_packet_bytes)
-
-    def _locate_region_address(self, region_id, sender_vertex):
-        """ determines if the base address of the region has been set. if the
-        address has not been set, it reads the address from the pointer table.
-        ONLY PLACE WHERE THIS IS STORED!
-
-        :param region_id: the region to locate the base address of
-        :param sender_vertex: the partitionedVertex to which this region links
-        :type region_id: int
-        :type sender_vertex: instance of PartitionedVertex
-        :return: None
-        """
-        base_address = sender_vertex.\
-            sender_buffer_collection.get_region_base_address_for(region_id)
-        if base_address is None:
-            placement = \
-                self._placements.get_placement_of_subvertex(sender_vertex)
-            app_data_base_address = \
-                self._transceiver.get_cpu_information_from_core(
-                    placement.x, placement.y, placement.p).user[0]
-
-            # Get the position of the region in the pointer table
-            region_offset_in_pointer_table = utility_calls.\
-                get_region_base_address_offset(app_data_base_address, region_id)
-            region_offset_to_core_base = str(list(self._transceiver.read_memory(
-                placement.x, placement.y,
-                region_offset_in_pointer_table, 4))[0])
-            base_address = struct.unpack("<I", region_offset_to_core_base)[0] \
-                + app_data_base_address
-            sender_vertex.sender_buffer_collection.\
-                set_region_base_address_for(region_id, base_address)
-
-    # to be copied in the buffered in buffer manager
-
-    @staticmethod
-    def create_eieio_messages_from(buffer_data):
-        """this method takes a collection of buffers in the form of a single
-        byte array and interprets them as eieio messages and returns a list of
-        eieio messages
-
-        :param buffer_data: the byte array data
-        :type buffer_data: LittleEndianByteArrayByteReader
-        :rtype: list of EIEIOMessages
-        :return: a list containing EIEIOMessages
-        """
-        messages = list()
-        while not buffer_data.is_at_end():
-            eieio_packet = create_class_from_reader(buffer_data)
-            messages.append(eieio_packet)
-        return messages
-
-    def _send_request(self, x, y, p, buffers):
-        """ handles a request from the munched queue by transmitting a chunk of
-        memory to a buffer
-
-        :param x:
-        :param y:
-        :param p:
-        :param buffers: the content of this message
-        :return:
-        """
-        if isinstance(buffers, (HostSendSequencedData, StopRequests,
-                                StartRequests, EventStopRequest)):
-            eieio_message_as_byte_array = \
-                buffers.get_eieio_message_as_byte_array()
-            sdp_header = SDPHeader(destination_chip_x=x,
-                                   destination_chip_y=y,
-                                   destination_cpu=p,
-                                   flags=SDPFlag.REPLY_NOT_EXPECTED,
-                                   destination_port=1)
-            sdp_message = \
-                SDPMessage(sdp_header, eieio_message_as_byte_array)
-            self._transceiver.send_sdp_message(sdp_message)
-        else:
-            raise spynnaker_exceptions.ConfigurationException(
-                "this type of request is not suitable for this thread. Please "
-                "fix and try again")
+        # with self._thread_lock:
+        #     if isinstance(packet, SpinnakerRequestBuffers):
+        #
+        #
+        #     elif isinstance(packet, SpinnakerRequestReadData):
+        #         pass
+        #     else:
+        #         raise spinnman_exceptions.SpinnmanInvalidPacketException(
+        #             packet.__class__,
+        #             "The command packet is invalid for buffer management")
