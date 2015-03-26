@@ -331,19 +331,19 @@ class AbstractSynapticManager(object):
                                                       weight_scales)
 
     @staticmethod
-    def get_weight_scale(ring_buffer_to_input_left_shift):
+    def get_weight_scale(ring_buffer_to_input_shift):
         """
         Return the amount to scale the weights by to convert them from floating
         point values to 16-bit fixed point numbers which can be shifted left by
         ring_buffer_to_input_left_shift to produce an s1615 fixed point number
         """
-        return float(math.pow(2, 16 - (ring_buffer_to_input_left_shift + 1)))
+        return float(math.pow(2, 15 - ring_buffer_to_input_shift))
 
-    def get_ring_buffer_to_input_left_shifts(self, subvertex, sub_graph, graph_mapper):
+    def get_ring_buffer_to_input_shifts(self, subvertex, sub_graph, graph_mapper):
         in_sub_edges = sub_graph.incoming_subedges_from_subvertex(subvertex)
         vertex_slice = graph_mapper.get_subvertex_slice(subvertex)
         n_atoms = (vertex_slice.hi_atom - vertex_slice.lo_atom) + 1  # do to starting at zero
-
+        
         # If we have an STDP mechanism, get the maximum plastic weight
         stdp_max_weight = None if self._stdp_mechanism is None else self._stdp_mechanism.get_max_weight()
         
@@ -355,22 +355,20 @@ class AbstractSynapticManager(object):
             
             # Update max weights from sublist
             sublist.max_weights(max_weights)
+        
+        # Calculate the base-2 logarithm of each maximum weight 
+        # (equivalent to amount of left-shift)
+        ring_buffer_left_shift = [int(math.log(w, 2)) for w in max_weights]
+        
+        # If STDP mechanism demands signed weights add extra bit of shift
+        if self._stdp_mechanism is not None and self._stdp_mechanism.are_weights_signed():
+            ring_buffer_left_shift = [r + 1 for r in ring_buffer_left_shift]
             
-        # Convert these to powers
-        max_weight_powers = [0 if w <= 0
-                            else int(math.ceil(max(0, math.log(w, 2))))
-                            for w in max_weights]
-
-        # If we have an STDP mechanism that uses signed weights,
-        # Add another bit of shift to prevent overflows
-        if self._stdp_mechanism is not None\
-            and self._stdp_mechanism.are_weights_signed():
-                max_weight_powers = [m + 1 for m in max_weight_powers]
-
-        # Actual shift is the max_weight_power - 1 for 16-bit fixed to s1615,
-        # but we ignore the "-1" to allow a bit of overhead in the above
-        # calculation in case a couple of extra spikes come in
-        return max_weight_powers
+        for t, w, m in zip(self.get_synapse_targets(), max_weights, ring_buffer_left_shift):
+            print("%s=%f,%d" % (t, w, m))
+        
+        # Return left shift
+        return ring_buffer_left_shift
 
     def write_synaptic_matrix_and_master_population_table(
             self, spec, subvertex, all_syn_block_sz, weight_scales,

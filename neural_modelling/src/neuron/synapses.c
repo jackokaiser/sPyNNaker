@@ -63,7 +63,11 @@
 
 // **NOTE** synapse shaping implementation gets included by compiler
 
-extern uint32_t ring_buffer_to_input_left_shifts[SYNAPSE_TYPE_COUNT]; // Amount to left shift the ring buffer by to make it an input
+extern uint32_t ring_buffer_to_input_shift_direction[SYNAPSE_TYPE_COUNT];  // Whether shift is left or right
+extern uint32_t ring_buffer_to_input_shift_bits[SYNAPSE_TYPE_COUNT];        // Amount to shift the ring buffer by to make it an input
+
+#define RING_BUFFER_SHIFT_LEFT 0
+#define RING_BUFFER_SHIFT_RIGHT 1
 
 #ifdef SYNAPSE_BENCHMARK
   extern uint32_t num_fixed_pre_synaptic_events;
@@ -115,8 +119,16 @@ void initialize_current_buffer (void)
 static inline current_t weight_to_current(index_t synapse_type, weight_t w)
 {
   union { int_k_t r; s1615 fx; } x;
-
-  x.r = (int_k_t)(w) << ring_buffer_to_input_left_shifts[synapse_type];
+  
+  // Shift input in correct direction
+  if(ring_buffer_to_input_shift_direction[synapse_type] == RING_BUFFER_SHIFT_LEFT)
+  {
+    x.r = (int_k_t)(w) << ring_buffer_to_input_shift_bits[synapse_type];
+  }
+  else
+  {
+    x.r = (int_k_t)(w) >> ring_buffer_to_input_shift_bits[synapse_type];
+  }
 
   return x.fx;
 }
@@ -150,6 +162,8 @@ void ring_buffer_transfer (void)
     shape_current(n);
 
     // Loop through all synapse types
+    // **NOTE** it MIGHT be slightly faster to re-arrange this code 
+    // So decision to left or right shift isn't done per neuron
     for(uint32_t s = 0; s < SYNAPSE_TYPE_COUNT; s++)
     {
       // Get offset of ring-buffer input for this synapse type

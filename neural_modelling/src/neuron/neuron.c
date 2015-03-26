@@ -40,7 +40,8 @@ timer_t  time;
 uint32_t  key;
 uint32_t  num_neurons;
 uint32_t  num_params;
-uint32_t  ring_buffer_to_input_left_shifts[SYNAPSE_TYPE_COUNT];
+uint32_t  ring_buffer_to_input_shift_direction[SYNAPSE_TYPE_COUNT];  // Whether shift is left or right
+uint32_t  ring_buffer_to_input_shift_bits[SYNAPSE_TYPE_COUNT];        // Amount to shift the ring buffer by to make it an input
 
 /*static inline voltage_t voltage_from_scale (unsigned long fract x)
 { return (decay (v_max-v_min,x) + v_min); }
@@ -146,8 +147,9 @@ bool neural_data_filled (address_t address, uint32_t flags)
   // Read ring buffer input shift for each synapse type
   for(index_t i = 0; i < SYNAPSE_TYPE_COUNT; i++)
   {
-    ring_buffer_to_input_left_shifts[i] = address[4 + i];
-    log_info("\tsynapse type %u, ring buffer to input left shift %u", i, ring_buffer_to_input_left_shifts[i]);
+    ring_buffer_to_input_shift_direction[i] = address[4 + i];
+    ring_buffer_to_input_shift_bits[i] = address[4 + SYNAPSE_TYPE_COUNT + i];
+    log_info("\tsynapse type:%u - ring buffer to input shift direction:%u, bits:%u", i, ring_buffer_to_input_shift_direction[i], ring_buffer_to_input_shift_bits[i]);
   }
 
   // Allocate DTCM for new format neuron array and copy block of data
@@ -157,7 +159,7 @@ bool neural_data_filled (address_t address, uint32_t flags)
     sentinel("Unable to allocate neuron array - Out of DTCM");
   }
 
-  memcpy( neuron_array, &address[4 + SYNAPSE_TYPE_COUNT], num_neurons * sizeof(neuron_t) );
+  memcpy( neuron_array, &address[4 + (SYNAPSE_TYPE_COUNT * 2)], num_neurons * sizeof(neuron_t) );
   initialize_out_spikes (num_neurons);
   //print_neurons();
 /*

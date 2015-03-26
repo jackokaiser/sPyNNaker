@@ -211,7 +211,7 @@ class AbstractPopulationDataSpec(AbstractSynapticManager,
 
     def write_neuron_parameters(
             self, spec, processor_chip_x, processor_chip_y, processor_id,
-            subvertex, ring_buffer_to_input_left_shifts, vertex_slice):
+            subvertex, ring_buffer_shifts, vertex_slice):
 
         n_atoms = (vertex_slice.hi_atom - vertex_slice.lo_atom) + 1
         spec.comment("\nWriting Neuron Parameters for {} "
@@ -240,9 +240,16 @@ class AbstractPopulationDataSpec(AbstractSynapticManager,
 
         # Write machine time step: (Integer, expressed in microseconds)
         spec.write_value(data=self._machine_time_step)
-
-        # Write ring_buffer_to_input_left_shift
-        spec.write_array(ring_buffer_to_input_left_shifts)
+        
+        # Split input shifts into direction and bits
+        ring_buffer_to_input_shift_direction, ring_buffer_to_input_shift_bits =\
+            zip(*[(0 if s > 0 else 1, abs(s)) for s in ring_buffer_shifts])
+        
+        print ring_buffer_to_input_shift_direction, ring_buffer_to_input_shift_bits
+        
+        # Write arrays of shift directions and amounts
+        spec.write_array(ring_buffer_to_input_shift_direction)
+        spec.write_array(ring_buffer_to_input_shift_bits)
 
         # TODO: NEEDS TO BE LOOKED AT PROPERLY
         # Create loop over number of neurons:
@@ -317,15 +324,15 @@ class AbstractPopulationDataSpec(AbstractSynapticManager,
         self.write_setup_info(spec, spike_hist_buff_sz, potential_hist_buff_sz,
                               gsyn_hist_buff_sz, self._executable_constant)
 
-        ring_buffer_shifts = self.get_ring_buffer_to_input_left_shifts(
+        ring_buffer_shifts = self.get_ring_buffer_to_input_shifts(
             subvertex, subgraph, graph_mapper)
 
         weight_scales = [self.get_weight_scale(r) for r in ring_buffer_shifts]
 
         for t, r, w in zip(self.get_synapse_targets(), ring_buffer_shifts,
                            weight_scales):
-            logger.debug(
-                "Synapse type:%s - Ring buffer shift:%d, Max weight:%f"
+            logger.info(
+                "Synapse type:%s - Ring buffer shift:%d, Weight scale:%f"
                 % (t, r, w))
 
         # update projections for future use
