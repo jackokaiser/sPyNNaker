@@ -318,8 +318,7 @@ class AbstractPopulationDataSpec(AbstractSynapticManager,
                               gsyn_hist_buff_sz, self._executable_constant)
 
         ring_buffer_shifts = self.get_ring_buffer_to_input_left_shifts(
-            subvertex, subgraph, graph_mapper, self._spikes_per_second,
-            self._machine_time_step, self._ring_buffer_sigma)
+            subvertex, subgraph, graph_mapper)
 
         weight_scales = [self.get_weight_scale(r) for r in ring_buffer_shifts]
 

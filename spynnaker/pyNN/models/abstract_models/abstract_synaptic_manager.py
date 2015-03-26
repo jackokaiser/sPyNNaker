@@ -339,176 +339,37 @@ class AbstractSynapticManager(object):
         """
         return float(math.pow(2, 16 - (ring_buffer_to_input_left_shift + 1)))
 
-    def _ring_buffer_expected_upper_bound(
-            self, weight_mean, weight_std_dev, spikes_per_second,
-            machine_timestep, n_synapses_in, sigma):
-
-        """
-        Provides expected upper bound on accumulated values in a ring buffer
-        element.
-
-        Requires an assessment of maximum Poisson input rate.
-
-        Assumes knowledge of mean and SD of weight distribution, fan-in
-        & timestep.
-
-        All arguments should be assumed real values except n_synapses_in
-        which will be an integer.
-
-        weight_mean - Mean of weight distribution (in either nA or
-                      microSiemens as required)
-        weight_std_dev - SD of weight distribution
-        spikes_per_second - Maximum expected Poisson rate in Hz
-        machine_timestep - in us
-        n_synapses_in - No of connected synapses
-        sigma - How many SD above the mean to go for upper bound;
-                a good starting choice is 5.0.  Given length of simulation we
-                can set this for approximate number of saturation events
-
-        """
-
-        # E[ number of spikes ] in a timestep
-        # x /1000000.0 = conversion between microsecond to second
-        average_spikes_per_timestep = (float(n_synapses_in * spikes_per_second)
-                                       * (float(machine_timestep) / 1000000.0))
-
-        # Exact variance contribution from inherent Poisson variation
-        poisson_variance = average_spikes_per_timestep * (weight_mean ** 2)
-
-        # Upper end of range for Poisson summation required below
-        # upper_bound needs to be an integer
-        upper_bound = int(round(average_spikes_per_timestep +
-                                constants.POSSION_SIGMA_SUMMATION_LIMIT
-                                * math.sqrt(average_spikes_per_timestep)))
-
-        # Closed-form exact solution for summation that gives the variance
-        # contributed by weight distribution variation when modulated by
-        # Poisson PDF.  Requires scipy.special for gamma and incomplete gamma
-        # functions. Beware: incomplete gamma doesn't work the same as
-        # Mathematica because (1) it's regularised and needs a further
-        # multiplication and (2) it's actually the complement that is needed
-        # i.e. 'gammaincc']
-
-        weight_variance = 0.0
-
-        if weight_std_dev > 0:
-
-            lngamma = special.gammaln(1 + upper_bound)
-
-            gammai = special.gammaincc(1 + upper_bound,
-                                       average_spikes_per_timestep)
-
-            big_ratio = (math.log(average_spikes_per_timestep) * upper_bound
-                         - lngamma)
-
-            if big_ratio > -701.0 and big_ratio < 701.0 and big_ratio != 0.0:
-
-                log_weight_variance = (
-                    -average_spikes_per_timestep
-                    + math.log(average_spikes_per_timestep)
-                    + 2.0 * math.log(weight_std_dev)
-                    + math.log(math.exp(average_spikes_per_timestep) * gammai
-                               - math.exp(big_ratio)))
-
-                weight_variance = math.exp(log_weight_variance)
-
-        # upper bound calculation -> mean + n * SD
-        return ((average_spikes_per_timestep * weight_mean)
-                + (sigma * math.sqrt(poisson_variance + weight_variance)))
-
-    def _get_ring_buffer_totals(self, subvertex, sub_graph, graph_mapper):
+    def get_ring_buffer_to_input_left_shifts(self, subvertex, sub_graph, graph_mapper):
         in_sub_edges = sub_graph.incoming_subedges_from_subvertex(subvertex)
         vertex_slice = graph_mapper.get_subvertex_slice(subvertex)
-        n_synapse_types = len(self.get_synapse_targets())
-        absolute_max_weights = numpy.zeros(n_synapse_types)
+        n_atoms = (vertex_slice.hi_atom - vertex_slice.lo_atom) + 1  # do to starting at zero
 
         # If we have an STDP mechanism, get the maximum plastic weight
-        stdp_max_weight = None
-        if self._stdp_mechanism is not None:
-            stdp_max_weight = self._stdp_mechanism.get_max_weight()
-            absolute_max_weights.fill(stdp_max_weight)
+        stdp_max_weight = None if self._stdp_mechanism is None else self._stdp_mechanism.get_max_weight()
+        
+        # Initialise list of max weights for each synapse target to either zero or the stdp_max_weight
+        max_weights = [0.0 if stdp_max_weight is None else stdp_max_weight for i, _ in enumerate(self.get_synapse_targets())]
 
-        total_weights = numpy.zeros((n_synapse_types, vertex_slice.n_atoms))
-        total_square_weights = numpy.zeros(
-            (n_synapse_types, vertex_slice.n_atoms))
-        total_items = numpy.zeros((n_synapse_types, vertex_slice.n_atoms))
         for subedge in in_sub_edges:
             sublist = subedge.get_synapse_sublist(graph_mapper)
-            sublist.sum_n_connections(total_items)
-
-            if stdp_max_weight is None:
-
-                # If there's no STDP maximum weight, sum the initial weights
-                sublist.max_weights(absolute_max_weights)
-                sublist.sum_weights(total_weights)
-                sublist.sum_square_weights(total_square_weights)
-
-            else:
-
-                # Otherwise, sum the pathalogical case of all columns being
-                # at stdp_max_weight
-                sublist.sum_fixed_weight(total_weights, stdp_max_weight)
-                sublist.sum_fixed_weight(total_square_weights,
-                                         stdp_max_weight * stdp_max_weight)
-
-        return (total_weights, total_square_weights, total_items,
-                absolute_max_weights)
-
-    def get_ring_buffer_to_input_left_shifts(
-            self, subvertex, sub_graph, graph_mapper, spikes_per_second,
-            machine_timestep, sigma):
-
-        total_weights, total_square_weights, total_items, abs_max_weights =\
-            self._get_ring_buffer_totals(subvertex, sub_graph, graph_mapper)
-
-        # Get maximum weight that can go into each post-synaptic neuron per
-        # synapse-type
-        max_weights = [max(t) for t in total_weights]
-
-        # Clip the total items to avoid problems finding the mean of nothing(!)
-        total_items = numpy.clip(total_items, a_min=1,
-                                 a_max=numpy.iinfo(int).max)
-        weight_means = total_weights / total_items
-
-        # Calculate the standard deviation, clipping to avoid numerical errors
-        weight_std_devs = numpy.sqrt(
-            numpy.clip(numpy.divide(
-                total_square_weights
-                - numpy.divide(numpy.power(total_weights, 2),
-                               total_items),
-                total_items), a_min=0.0, a_max=numpy.finfo(float).max))
-
-        vertex_slice = graph_mapper.get_subvertex_slice(subvertex)
-        n_synapse_types = len(self.get_synapse_targets())
-        expected_weights = numpy.fromfunction(
-            numpy.vectorize(
-                lambda i, j: self._ring_buffer_expected_upper_bound(
-                    weight_means[i][j], weight_std_devs[i][j],
-                    spikes_per_second, machine_timestep, total_items[i][j],
-                    sigma)),
-            (n_synapse_types, vertex_slice.n_atoms))
-        expected_max_weights = [max(t) for t in expected_weights]
-        max_weights = [min((w, e))
-                       for w, e in zip(max_weights, expected_max_weights)]
-        max_weights = [max((w, a))
-                       for w, a in zip(max_weights, abs_max_weights)]
-
+            
+            # Update max weights from sublist
+            sublist.max_weights(max_weights)
+            
         # Convert these to powers
         max_weight_powers = [0 if w <= 0
-                             else int(math.ceil(max(0, math.log(w, 2))))
-                             for w in max_weights]
-
-        # If 2^max_weight_power equals the max weight, we have to add another
-        # power, as range is 0 - (just under 2^max_weight_power)!
-        max_weight_powers = [w + 1 if (2 ** w) >= a else w
-                             for w, a in zip(max_weight_powers, max_weights)]
+                            else int(math.ceil(max(0, math.log(w, 2))))
+                            for w in max_weights]
 
         # If we have an STDP mechanism that uses signed weights,
         # Add another bit of shift to prevent overflows
         if self._stdp_mechanism is not None\
-                and self._stdp_mechanism.are_weights_signed():
-            max_weight_powers = [m + 1 for m in max_weight_powers]
+            and self._stdp_mechanism.are_weights_signed():
+                max_weight_powers = [m + 1 for m in max_weight_powers]
 
+        # Actual shift is the max_weight_power - 1 for 16-bit fixed to s1615,
+        # but we ignore the "-1" to allow a bit of overhead in the above
+        # calculation in case a couple of extra spikes come in
         return max_weight_powers
 
     def write_synaptic_matrix_and_master_population_table(

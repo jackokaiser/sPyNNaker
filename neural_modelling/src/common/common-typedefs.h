@@ -147,7 +147,7 @@ typedef unsigned long fract      synapse_input_t;
 #endif
 
 #ifndef SYNAPSE_DELAY_BITS
-#define SYNAPSE_DELAY_BITS 4
+#define SYNAPSE_DELAY_BITS 3
 #endif
 
 #ifndef SYNAPSE_WEIGHT_BITS
@@ -155,7 +155,7 @@ typedef unsigned long fract      synapse_input_t;
 #endif
 
 #ifndef RING_ENTRY_BITS
-#define RING_ENTRY_BITS SYNAPSE_WEIGHT_BITS
+#define RING_ENTRY_BITS 32
 #endif
 
 #ifndef CURRENT_BITS
