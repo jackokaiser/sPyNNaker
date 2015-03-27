@@ -250,21 +250,8 @@ static inline void process_fixed_synapses (address_t fixed)
     // Convert into ring buffer offset
     uint32_t offset = offset_sparse(delay + t, index);
 
-    // Add weight to current ring buffer value
-    uint32_t accumulation = rp[offset] + weight;
-
-    // If 17th bit is set, saturate accumulator at UINT16_MAX (0xFFFF)
-    // **NOTE** 0x10000 can be expressed as an ARM literal, but 0xFFFF cannot
-    // **NOTE** Therefore, we use (0x10000 - 1) to obtain this value
-    uint32_t sat_test = accumulation & 0x10000;
-    if(sat_test)
-    {
-      accumulation = sat_test - 1;
-      saturation_count += 1;
-    }
-
     // Store saturated value back in ring-buffer
-    rp[offset] = accumulation;         // Add the weight to the current ring_buffer value.
+    rp[offset] = rp[offset] + weight;
   }
 }
 
@@ -593,7 +580,7 @@ synaptic_row_t generate_random_synaptic_row (void)
 
 void print_currents (void)
 {
-  /*bool empty = true;
+  bool empty = true;
   current_t c;
 
   printf ("Currents\n");
@@ -618,7 +605,7 @@ void print_currents (void)
       }
     }
     printf ("-------------------------------------\n");
-  }*/
+  }
 }
 
 #else /*DEBUG*/
