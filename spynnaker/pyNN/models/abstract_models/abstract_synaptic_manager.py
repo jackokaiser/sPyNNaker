@@ -358,7 +358,7 @@ class AbstractSynapticManager(object):
         
         # Calculate the base-2 logarithm of each maximum weight 
         # (equivalent to amount of left-shift)
-        ring_buffer_left_shift = [int(math.log(w, 2)) for w in max_weights]
+        ring_buffer_left_shift = [0 if w == 0.0 else int(math.log(w, 2)) for w in max_weights]
         
         # If STDP mechanism demands signed weights add extra bit of shift
         if self._stdp_mechanism is not None and self._stdp_mechanism.are_weights_signed():
