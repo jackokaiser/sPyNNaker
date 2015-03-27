@@ -6,12 +6,6 @@ from abc import abstractmethod
 
 @add_metaclass(ABCMeta)
 class AbstractConductanceVertex(object):
-
-    # Amount by which to scale the weights to maintain accuracy.
-    # The weights will be divided by this amount when leaving
-    # the current buffer (power of 2 advised)
-    WEIGHT_SCALE = 1024.0
-
     # noinspection PyPep8Naming
     def __init__(self, n_neurons, e_rev_E, e_rev_I):
 

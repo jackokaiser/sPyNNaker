@@ -104,8 +104,7 @@ class DistanceDependentProbabilityConnector(FromListConnector):
         return dd_potential_prob < dd_actual_prob
 
     def generate_synapse_list(
-            self, presynaptic_population, postsynaptic_population, delay_scale,
-            weight_scale, synapse_type):
+            self, presynaptic_population, postsynaptic_population, delay_scale, synapse_type):
 
         prevertex = presynaptic_population._get_vertex
         postvertex = postsynaptic_population._get_vertex
@@ -163,7 +162,7 @@ class DistanceDependentProbabilityConnector(FromListConnector):
                 raise ConfigurationException(
                     "Invalid neuron id in postsynaptic population {}".format(
                         post_atom))
-            weight = generate_parameter(conn[2], i) * weight_scale
+            weight = generate_parameter(conn[2], i)
             delay = generate_parameter(conn[3], i) * delay_scale
             id_lists[pre_atom].append(post_atom)
             weight_lists[pre_atom].append(weight)

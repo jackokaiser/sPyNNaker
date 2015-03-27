@@ -10,10 +10,11 @@ from spynnaker.pyNN import exceptions
 
 class PlasticWeightControlSynapseRowIo(AbstractSynapseRowIo):
 
-    def __init__(self, num_header_words, dendritic_delay_fraction, signed):
+    def __init__(self, num_header_words, dendritic_delay_fraction, signed, num_control_half_words):
         self._num_header_words = num_header_words
         self._dendritic_delay_fraction = dendritic_delay_fraction
         self._signed = signed
+        self._num_control_half_words = num_control_half_words
 
     @property
     def dendritic_delay_fraction(self):
@@ -33,13 +34,15 @@ class PlasticWeightControlSynapseRowIo(AbstractSynapseRowIo):
         # If there are an odd number of synapses, round up number
         # Of control half-words so they will be word-aligned
         num_fixed_plastic_words = math.ceil(num_synapses / 2)
-
-        # As fixed-plastic and plastic regions both require this
-        # Many half words, this is the number of words!
-        num_words = (num_synapses + num_fixed_plastic_words
+        
+        # Each synapse contains a half word for the weight and num_control_half_words 
+        # control words. Then round up as they will be word-aligned
+        num_plastic_plastic_half_words = num_synapses * (self._num_control_half_words + 1)
+        num_plastic_plastic_words = math.ceil(num_plastic_plastic_half_words / 2)
+        
+        # Add size of both sub-regions to header size and return
+        return (num_plastic_plastic_words + num_fixed_plastic_words
                 + self._num_header_words)
-
-        return num_words
 
     def get_packed_fixed_fixed_region(self, synapse_row, weight_scale,
                                       n_synapse_type_bits):
@@ -102,9 +105,10 @@ class PlasticWeightControlSynapseRowIo(AbstractSynapseRowIo):
             half_word_datatype = "uint16"
 
         # Interleave these with zeros and get uint32 view
-        padded_weights = numpy.zeros(len(scaled_weights) * 2,
-                dtype=half_word_datatype)
-        padded_weights[0::2] = scaled_weights
+        num_halfwords_per_synapse = self._num_control_half_words + 1
+        num_pp_halfwords = len(scaled_weights) * num_halfwords_per_synapse
+        padded_weights = numpy.zeros(num_pp_halfwords, dtype=half_word_datatype)
+        padded_weights[0::num_halfwords_per_synapse] = scaled_weights
         padded_weights_view = padded_weights.view(dtype="uint32")
 
         # Allocate memory for pre-synaptic event buffer
@@ -151,7 +155,8 @@ class PlasticWeightControlSynapseRowIo(AbstractSynapseRowIo):
 
         # Slice out weight half words,
         # Convert to float  and divide by weight scale
-        weights = half_words[0::2].astype("float") / synapse_weight_scales
+        num_halfwords_per_synapse = self._num_control_half_words + 1
+        weights = half_words[0::num_halfwords_per_synapse].astype("float") / synapse_weight_scales
 
         return SynapseRowInfo(target_indices, weights, delays_in_ticks,
                               synapse_types)

@@ -44,8 +44,7 @@ class SpikePairTimeDependency(AbstractTimeDependency):
     def is_time_dependance_rule_part(self):
         return True
 
-    def write_plastic_params(self, spec, machine_time_step, weight_scales,
-                             global_weight_scale):
+    def write_plastic_params(self, spec, machine_time_step, weight_scales):
 
         # Check timestep is valid
         if machine_time_step != 1000:

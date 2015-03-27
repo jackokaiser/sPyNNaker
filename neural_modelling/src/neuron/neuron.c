@@ -43,34 +43,6 @@ uint32_t  num_params;
 uint32_t  ring_buffer_to_input_shift_direction[SYNAPSE_TYPE_COUNT];  // Whether shift is left or right
 uint32_t  ring_buffer_to_input_shift_bits[SYNAPSE_TYPE_COUNT];        // Amount to shift the ring buffer by to make it an input
 
-/*static inline voltage_t voltage_from_scale (unsigned long fract x)
-{ return (decay (v_max-v_min,x) + v_min); }
-
-static inline resistance_t resistance_from_scale (unsigned long fract x)
-{ return (kbits (bitsulr (x) >> 17)); }
-
-void voltages (voltage_t* v, size_t n)
-{
-  index_t i;
-
-  for (i = 0; i < n; i++) v [i] = voltage_from_scale (((u032*) v) [i]);
-}*/
-
-
-
-//s1615 u032_to_s1615 (u032 x)
-//{}
-/*
-static inline void new_membrane_dynamics (index_t n)
-{
-  accum k = 0.997; // exp (-h/(r*c))
-  accum r = 1.6; // ?ohms
-  accum alpha = get_current (n) * r + voltage_to_accum (v_rest [n]);
-  accum next_v = alpha - k * (alpha - voltage_to_accum (v_membrane [n]));
-
-  v_membrane [n] = accum_to_voltage (next_v);
-}
-*/
 
 static bool record_neuron_param(recording_channel_e channel, uint8_t parameter, neuron_pointer_t neuron)
 {
@@ -88,8 +60,8 @@ void neuron (index_t n)
 
   // Get excitatory and inhibitory input from synapses
   // **NOTE** this may be in either conductance or current units
-  accum exc_neuron_input = neuron_get_exc_input(get_exc_neuron_input(n));
-  accum inh_neuron_input = neuron_get_inh_input(get_inh_neuron_input(n));
+  accum exc_neuron_input = get_exc_neuron_input(n);
+  accum inh_neuron_input = get_inh_neuron_input(n);
 
   // Get external bias from any source of intrinsic plasticity
   accum external_bias = plasticity_get_intrinsic_bias(n);

@@ -47,8 +47,7 @@ class FixedProbabilityConnector(AbstractConnector):
                                          " and 1 (inclusive)")
 
     def generate_synapse_list(
-            self, presynaptic_population, postsynaptic_population, delay_scale,
-            weight_scale, synapse_type):
+            self, presynaptic_population, postsynaptic_population, delay_scale, synapse_type):
 
         prevertex = presynaptic_population._get_vertex
         postvertex = postsynaptic_population._get_vertex
@@ -66,8 +65,8 @@ class FixedProbabilityConnector(AbstractConnector):
 
             delays = (generate_parameter_array(
                 self._delays, n_present, present) * delay_scale)
-            weights = (generate_parameter_array(
-                self._weights, n_present, present) * weight_scale)
+            weights = generate_parameter_array(
+                self._weights, n_present, present)
             synapse_types = (numpy.ones(len(ids), dtype='uint32')
                              * synapse_type)
 

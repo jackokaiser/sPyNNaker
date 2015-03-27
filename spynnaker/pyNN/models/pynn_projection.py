@@ -82,12 +82,10 @@ class Projection(object):
                         "More than one connection between the same pair of"
                         " vertices is not currently supported")
         '''
-        self._weight_scale = postsynaptic_population._get_vertex.weight_scale
         synapse_list = \
             connector.generate_synapse_list(
                 presynaptic_population, postsynaptic_population,
-                1000.0 / machine_time_step,
-                postsynaptic_population._get_vertex.weight_scale, synapse_type)
+                1000.0 / machine_time_step, synapse_type)
         self._host_based_synapse_list = synapse_list
 
         # If there are some negative weights
@@ -102,11 +100,6 @@ class Projection(object):
             # Otherwise, the weights are all negative, so invert them(!)
             else:
                 synapse_list.flip()
-
-        # Set any weight scaling for STDP
-        if synapse_dynamics is not None:
-            synapse_dynamics.weight_scale =\
-                postsynaptic_population._get_vertex.weight_scale
 
         # check if all delays requested can fit into the natively supported
         # delays in the models
@@ -333,7 +326,7 @@ class Projection(object):
         if format == 'list':
             weights = list()
             for row in self._host_based_synapse_list.get_rows():
-                weights.extend(row.weights / self._weight_scale)
+                weights.extend(row.weights)
             return weights
 
         weights = numpy.zeros((self._projection_edge.pre_vertex.n_atoms,
@@ -344,7 +337,7 @@ class Projection(object):
             for i in xrange(len(row.target_indices)):
                 post_atom = row.target_indices[i]
                 weight = row.weights[i]
-                weights[pre_atom][post_atom] = weight / self._weight_scale
+                weights[pre_atom][post_atom] = weight
         return weights
 
     def __len__(self):

@@ -58,8 +58,7 @@ class AbstractWeightDependency(AbstractRulePart):
         """
 
     @abstractmethod
-    def write_plastic_params(self, spec, machine_time_step, weight_scales,
-                             global_weight_scale, num_terms):
+    def write_plastic_params(self, spec, machine_time_step, weight_scales, num_terms):
         """ method that writes plastic params to a data spec generator
 
         :param spec:

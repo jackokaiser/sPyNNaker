@@ -6,8 +6,7 @@ from spynnaker.pyNN import exceptions
 class FixedNumberPostConnector(AbstractConnector):
 
     def generate_synapse_list(
-            self, presynaptic_population, postsynaptic_population, delay_scale,
-            weight_scale, synapse_type):
+            self, presynaptic_population, postsynaptic_population, delay_scale, synapse_type):
         raise exceptions.SpynnakerException("This connector is currently not "
                                             "supported by the tool chain....."
                                             "watch this space")

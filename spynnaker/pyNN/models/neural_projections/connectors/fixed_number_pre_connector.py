@@ -44,8 +44,7 @@ class FixedNumberPreConnector(AbstractConnector):
         self._allow_self_connections = allow_self_connections
 
     def generate_synapse_list(
-            self, presynaptic_population, postsynaptic_population, delay_scale,
-            weight_scale, synapse_type):
+            self, presynaptic_population, postsynaptic_population, delay_scale, synapse_type):
 
         prevertex = presynaptic_population._get_vertex
         postvertex = postsynaptic_population._get_vertex
@@ -78,8 +77,8 @@ class FixedNumberPreConnector(AbstractConnector):
                 n_present = postvertex.n_atoms
 
             id_lists[pre_atom] = numpy.where(present)[0]
-            weight_lists[pre_atom] = (generate_parameter_array(
-                self._weights, n_present, present) * weight_scale)
+            weight_lists[pre_atom] = generate_parameter_array(
+                self._weights, n_present, present)
 
             delay_lists[pre_atom] = (generate_parameter_array(
                 self._delays, n_present, present) * delay_scale)

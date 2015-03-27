@@ -31,8 +31,7 @@ class OneToOneConnector(AbstractConnector):
         self._delays = delays
 
     def generate_synapse_list(
-            self, presynaptic_population, postsynaptic_population, delay_scale,
-            weight_scale, synapse_type):
+            self, presynaptic_population, postsynaptic_population, delay_scale, synapse_type):
 
         prevertex = presynaptic_population._get_vertex
         postvertex = postsynaptic_population._get_vertex
@@ -44,7 +43,7 @@ class OneToOneConnector(AbstractConnector):
         connection_list = list()
         for pre_atom in range(0, prevertex.n_atoms):
             delay = generate_parameter(self._delays, pre_atom) * delay_scale
-            weight = generate_parameter(self._weights, pre_atom) * weight_scale
+            weight = generate_parameter(self._weights, pre_atom)
             connection_list.append(SynapseRowInfo([pre_atom], [weight],
                                    [delay], [synapse_type]))
 

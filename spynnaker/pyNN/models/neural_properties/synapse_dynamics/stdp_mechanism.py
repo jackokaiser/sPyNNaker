@@ -50,16 +50,6 @@ class STDPMechanism(object):
         if self.voltage_dependence is not None:
             raise NotImplementedError("voltage_dependence not implemented")
 
-        self._weight_scale = 1.0
-
-    @property
-    def weight_scale(self):
-        return self._weight_scale
-
-    @weight_scale.setter
-    def weight_scale(self, weight_scale):
-        self._weight_scale = weight_scale
-
     @property
     def timing_dependence(self):
         return self._timing_dependence
@@ -154,13 +144,13 @@ class STDPMechanism(object):
         num_terms = 1
         if self.timing_dependence is not None:
             self.timing_dependence.write_plastic_params(
-                spec, machine_time_step, weight_scales, self._weight_scale)
+                spec, machine_time_step, weight_scales)
             num_terms = self.timing_dependence.num_terms
 
         # Write weight dependence information to region
         if self.weight_dependence is not None:
             self.weight_dependence.write_plastic_params(
-                spec, machine_time_step, weight_scales, self._weight_scale,
+                spec, machine_time_step, weight_scales,
                 num_terms)
 
     # **TODO** make property

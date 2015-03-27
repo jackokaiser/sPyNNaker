@@ -46,8 +46,7 @@ class IFConductanceExponentialPopulation(AbstractExponentialPopulationVertex,
             machine_time_step=machine_time_step,
             timescale_factor=timescale_factor,
             spikes_per_second=spikes_per_second,
-            ring_buffer_sigma=ring_buffer_sigma,
-            weight_scale=AbstractConductanceVertex.WEIGHT_SCALE)
+            ring_buffer_sigma=ring_buffer_sigma)
         self._executable_constant = \
             IFConductanceExponentialPopulation.CORE_APP_IDENTIFIER
 

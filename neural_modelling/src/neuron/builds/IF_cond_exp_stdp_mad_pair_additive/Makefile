@@ -15,7 +15,7 @@ $(BUILDDIR)/neuron/plasticity/stdp/timing_dependence/pair.o: $(SOURCE_DIR)/plast
 
 $(BUILDDIR)/neuron/plasticity/stdp/weight_dependence/additive_one_term.o: $(SOURCE_DIR)/plasticity/stdp/weight_dependence/additive_one_term.c
 	-mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -include $(SYNAPSE_SHAPING_H) -o $@ $<
+	$(CC) $(CFLAGS) -include $(STDP_TYPEDEFS_H) -include $(SYNAPSE_SHAPING_H) -o $@ $<
 
 $(BUILDDIR)/neuron/plasticity/stdp/stdp_mad.o: $(SOURCE_DIR)/plasticity/stdp/stdp_mad.c
 	-mkdir -p $(dir $@)

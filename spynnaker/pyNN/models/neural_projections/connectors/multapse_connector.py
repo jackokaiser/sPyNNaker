@@ -38,8 +38,7 @@ class MultapseConnector(AbstractConnector):
         self._connection_array = connection_array
 
     def generate_synapse_list(
-            self, presynaptic_population, postsynaptic_population, delay_scale,
-            weight_scale, synapse_type):
+            self, presynaptic_population, postsynaptic_population, delay_scale, synapse_type):
 
         prevertex = presynaptic_population._get_vertex
         postvertex = postsynaptic_population._get_vertex
@@ -60,7 +59,7 @@ class MultapseConnector(AbstractConnector):
         for _ in range(0, self._num_synapses):
             source = int(random.random() * num_incoming_axons)
             target = int(random.random() * num_target_neurons)
-            weight = generate_parameter(self._weights, target) * weight_scale
+            weight = generate_parameter(self._weights, target)
             delay = generate_parameter(self._delays, target) * delay_scale
             id_lists[source].append(target)
             weight_lists[source].append(weight)

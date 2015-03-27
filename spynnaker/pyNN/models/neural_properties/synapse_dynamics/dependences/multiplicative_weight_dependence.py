@@ -28,8 +28,7 @@ class MultiplicativeWeightDependence(AbstractWeightDependency):
 
         return (4 * 4) * num_synapse_types
 
-    def write_plastic_params(self, spec, machineTimeStep, weight_scales,
-                             global_weight_scale, num_terms):
+    def write_plastic_params(self, spec, machineTimeStep, weight_scales, num_terms):
         if num_terms != 1:
             raise NotImplementedError(
                 "Multiplicative weight dependence only supports single terms")
@@ -37,17 +36,17 @@ class MultiplicativeWeightDependence(AbstractWeightDependency):
         # Loop through each synapse type's weight scale
         for w in weight_scales:
             spec.write_value(
-                data=int(round(self.w_min * w * global_weight_scale)),
+                data=int(round(self.w_min * w)),
                 data_type=DataType.INT32)
             spec.write_value(
-                data=int(round(self.w_max * w * global_weight_scale)),
+                data=int(round(self.w_max * w)),
                 data_type=DataType.INT32)
 
             spec.write_value(
-                data=int(round(self.A_plus * w * global_weight_scale)),
+                data=int(round(self.A_plus * w)),
                 data_type=DataType.INT32)
             spec.write_value(
-                data=int(round(self.A_minus * w * global_weight_scale)),
+                data=int(round(self.A_minus * w)),
                 data_type=DataType.INT32)
 
     @property
