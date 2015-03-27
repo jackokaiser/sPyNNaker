@@ -21,9 +21,9 @@ typedef struct
   int32_t max_weight;
   
   int32_t a2_plus;
-  int32_t a2_minus;
+  int32_t minus_a2_minus;
   int32_t a3_plus;
-  int32_t a3_minus;
+  int32_t minus_a3_minus;
 } plasticity_weight_region_data_t;
 
 typedef struct weight_state_t
@@ -75,13 +75,13 @@ static inline weight_t weight_get_final(weight_state_t new_state)
 {
   // Scale potentiation and depression
   // **NOTE** A2+, A2-, A3+ and A3- are pre-scaled into weight format
-  int32_t scaled_a2_plus = STDP_FIXED_MUL_16X16(new_state.a2_plus, new_state.weight_region->a2_plus);
-  int32_t scaled_a2_minus = STDP_FIXED_MUL_16X16(new_state.a2_minus, new_state.weight_region->a2_minus);
-  int32_t scaled_a3_plus = STDP_FIXED_MUL_16X16(new_state.a3_plus, new_state.weight_region->a3_plus);
-  int32_t scaled_a3_minus = STDP_FIXED_MUL_16X16(new_state.a3_minus, new_state.weight_region->a3_minus);
-  
+  int32_t delta_weight = __smulbb(new_state.a2_plus, new_state.weight_region->a2_plus);
+  delta_weight = __smlabb(new_state.a3_plus, new_state.weight_region->a3_plus, delta_weight);
+  delta_weight = __smlabb(new_state.a2_minus, new_state.weight_region->minus_a2_minus, delta_weight);
+  delta_weight = __smlabb(new_state.a3_minus, new_state.weight_region->minus_a3_minus, delta_weight);
+
   // Apply all terms to initial weight
-  int32_t new_weight = new_state.initial_weight + scaled_a2_plus + scaled_a3_plus - scaled_a2_minus - scaled_a3_minus;
+  int32_t new_weight = new_state.initial_weight + (delta_weight >> STDP_FIXED_POINT);
 
   // Clamp new weight
   new_weight = MIN(new_state.weight_region->max_weight, MAX(new_weight, new_state.weight_region->min_weight));
