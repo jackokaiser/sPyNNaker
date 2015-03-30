@@ -4,12 +4,25 @@ from pacman.operations.router_check_functionality.valid_routes_checker import \
 from pacman.utilities import reports as pacman_reports
 from pacman.operations.partition_algorithms.basic_partitioner import \
     BasicPartitioner
+from pacman.model.partitionable_graph.multi_cast_partitionable_edge\
+    import MultiCastPartitionableEdge
+from pacman.operations.tag_allocator_algorithms.basic_tag_allocator \
+    import BasicTagAllocator
+from pacman.model.routing_info.dict_based_partitioned_edge_n_keys_map \
+    import DictBasedPartitionedEdgeNKeysMap
+from pacman.operations.router_algorithms.basic_dijkstra_routing \
+    import BasicDijkstraRouting
+from pacman.operations.placer_algorithms.basic_placer import BasicPlacer
+from pacman.operations.routing_info_allocator_algorithms.\
+    basic_routing_info_allocator import BasicRoutingInfoAllocator
+from pacman.utilities.progress_bar import ProgressBar
+
 from spynnaker.pyNN.buffer_management.buffer_manager import BufferManager
+from spynnaker.pyNN.models.abstract_models.buffer_models\
+    .abstract_sends_buffers_from_host_partitioned_vertex\
+    import AbstractSendsBuffersFromHostPartitionedVertex
 from spynnaker.pyNN.buffer_management.buffer_sending_from_host_manager import \
     BufferSendingFromHostManager
-from spynnaker.pyNN.models.abstract_models.abstract_comm_models.\
-    abstract_sends_buffers_from_host_partitionable_vertex import \
-    AbstractSendsBuffersFromHostPartitionableVertex
 from spynnaker.pyNN.models.abstract_models.abstract_virtual_vertex import \
     AbstractVirtualVertex
 from spynnaker.pyNN.models.abstract_models.abstract_provides_n_keys_for_edge\
@@ -26,18 +39,6 @@ from spynnaker.pyNN.models.abstract_models\
 from spynnaker.pyNN.models.abstract_models\
     .abstract_vertex_with_dependent_vertices \
     import AbstractVertexWithEdgeToDependentVertices
-from pacman.operations.tag_allocator_algorithms.basic_tag_allocator \
-    import BasicTagAllocator
-from pacman.model.partitionable_graph.abstract_partitionable_edge \
-    import AbstractPartitionableEdge
-from pacman.model.routing_info.dict_based_partitioned_edge_n_keys_map \
-    import DictBasedPartitionedEdgeNKeysMap
-from pacman.operations.router_algorithms.basic_dijkstra_routing \
-    import BasicDijkstraRouting
-from pacman.operations.placer_algorithms.basic_placer import BasicPlacer
-from pacman.operations.routing_info_allocator_algorithms.\
-    basic_routing_info_allocator import BasicRoutingInfoAllocator
-from pacman.utilities.progress_bar import ProgressBar
 
 # spinnmachine imports
 from spinn_machine.sdram import SDRAM
@@ -70,7 +71,6 @@ from spynnaker.pyNN.utilities.data_generator_interface import \
 # spinnman imports
 from spinnman.model.core_subsets import CoreSubsets
 from spinnman.model.core_subset import CoreSubset
-import spinnman.constants as spinnman_constants
 
 import logging
 import math
@@ -106,7 +106,6 @@ class Spinnaker(SpynnakerConfiguration, SpynnakerCommsFunctions):
             self._set_up_executable_specifics()
             self._set_up_report_specifics()
             self._set_up_output_application_data_specifics()
-            self._set_up_buffer_requirements()
         self._set_up_machine_specifics(timestep, min_delay, max_delay,
                                        host_name)
         self._spikes_per_second = float(conf.config.getfloat(
@@ -138,6 +137,9 @@ class Spinnaker(SpynnakerConfiguration, SpynnakerCommsFunctions):
         # add this default to end of list of search paths
         self._binary_search_paths.append(binary_path)
         self._edge_count = 0
+
+        # Manager of buffered sending
+        self._send_buffer_manager = None
 
     def run(self, run_time):
         self._setup_interfaces(hostname=self._hostname)
@@ -267,10 +269,7 @@ class Spinnaker(SpynnakerConfiguration, SpynnakerCommsFunctions):
                 logger.info("*** Loading executables ***")
                 self._load_executable_images(executable_targets, self._app_id)
                 logger.info("*** Loading buffers ***")
-                self._load_buffers_for_bufferable_vertices()
-                logger.info("*** Setting up listeners for buffer reads")
-                logger.info("*** Loading fixed route entries ***")
-                self._load_fixed_route_entries()
+                self._set_up_send_buffering()
 
             # end of entire loading setup
             if do_timing:
@@ -285,16 +284,18 @@ class Spinnaker(SpynnakerConfiguration, SpynnakerCommsFunctions):
                         binary_folder, executable_targets, self._hostname,
                         self._app_id, run_time)
 
+                # every thing is in sync0. load the initial buffers
+                self._send_buffer_manager.load_initial_buffers()
+
                 wait_on_confirmation = conf.config.getboolean(
                     "Database", "wait_on_confirmation")
                 send_start_notification = conf.config.getboolean(
                     "Database", "send_start_notification")
                 self._start_execution_on_machine(
                     executable_targets, self._app_id, self._runtime,
-                    self._buffer_managers, self._time_scale_factor,
-                    wait_on_confirmation, send_start_notification,
-                    self._database_interface, self._in_debug_mode,
-                    self._routing_infos, self._partitioned_graph)
+                    self._time_scale_factor, wait_on_confirmation,
+                    send_start_notification, self._database_interface,
+                    self._in_debug_mode)
                 self._has_ran = True
                 if self._retrieve_provance_data:
 
@@ -307,56 +308,26 @@ class Spinnaker(SpynnakerConfiguration, SpynnakerCommsFunctions):
         else:
             logger.info("*** No simulation requested: Stopping. ***")
 
-    def _load_buffers_for_bufferable_vertices(self):
-        progress_bar = \
-            ProgressBar(len(self.partitionable_graph.vertices),
-                        "on initialising the buffer managers for vertices "
-                        "which require buffering")
-        for partitionable_vertex in self.partitionable_graph.vertices:
-            # if the buffer manager for this port has not been built yet,
-            # build it
-            if not isinstance(partitionable_vertex,
-                              AbstractSendsBuffersFromHostPartitionableVertex):
-                continue
-            key = partitionable_vertex
-            if key not in self._buffer_managers.keys():
-                subvertex = next(iter(
-                    self._graph_mapper.get_subvertices_from_vertex(key)))
-                tag = self._tags.get_ip_tags_for_vertex(subvertex)[0]
-                self._general_buffer_manager = BufferManager()
-                self._buffer_managers[key] = BufferSendingFromHostManager(
-                    self._placements, self._routing_infos, self.graph_mapper,
-                    tag.port, tag.ip_address, self._txrx,
-                    self._general_buffer_manager)
+    def _set_up_send_buffering(self):
+        progress_bar = ProgressBar(
+            len(self.partitionable_graph.vertices),
+            "on initialising the buffer managers for vertices which require"
+            " buffering")
 
-            # locate vertices which need to be buffer receiving managed
-            if isinstance(partitionable_vertex,
-                          AbstractSendsBuffersFromHostPartitionableVertex):
-                self._buffer_managers[key].add_sender_vertex(
-                    partitionable_vertex)
+        # Create the buffer manager
+        self._send_buffer_manager = BufferManager(
+            self._placements, self._routing_infos, self._tags, self._txrx)
+
+        for partitioned_vertex in self.partitioned_graph.subvertices:
+            if isinstance(partitioned_vertex,
+                          AbstractSendsBuffersFromHostPartitionedVertex):
+
+                # Add the vertex to the managed vertices
+                self._send_buffer_manager.add_sender_vertex(
+                    partitioned_vertex)
             progress_bar.update()
         progress_bar.end()
 
-        # set up listener for buffer command messages if the buffer manager has
-        # has been initialised
-        progress_bar = ProgressBar(len(self._buffer_managers.keys()),
-                                   "on initialising the listeners for vertices "
-                                   "which require buffering")
-        for buffer_manager_key in self._buffer_managers.keys():
-            self._txrx.register_listener(
-                # self._buffer_managers[buffer_manager_key].
-                # receive_buffer_command_message,
-                self._general_buffer_manager.receive_buffer_command_message,
-                self._buffer_managers[buffer_manager_key].port,
-                self._buffer_managers[buffer_manager_key].local_host,
-                spinnman_constants.CONNECTION_TYPE.UDP_IPTAG,
-                spinnman_constants.TRAFFIC_TYPE.EIEIO_COMMAND)
-            progress_bar.update()
-        progress_bar.end()
-
-    def _load_fixed_route_entries(self):
-        pass
-    
     @property
     def app_id(self):
         return self._app_id
@@ -418,18 +389,6 @@ class Spinnaker(SpynnakerConfiguration, SpynnakerCommsFunctions):
 
     def set_runtime(self, value):
         self._runtime = value
-
-    @property
-    def buffer_ip_address(self):
-        return self._default_buffer_ip_address
-
-    @property
-    def buffer_ip_port(self):
-        return self._default_buffer_ip_port
-
-    @property
-    def buffer_managers(self):
-        return self._buffer_managers
 
     def get_current_time(self):
         if self._has_ran:
@@ -711,7 +670,7 @@ class Spinnaker(SpynnakerConfiguration, SpynnakerCommsFunctions):
                 self._multi_cast_vertex = CommandSender(
                     self._machine_time_step, self._time_scale_factor)
                 self.add_vertex(self._multi_cast_vertex)
-            edge = AbstractPartitionableEdge(
+            edge = MultiCastPartitionableEdge(
                 self._multi_cast_vertex, vertex_to_add)
             self._multi_cast_vertex.add_commands(vertex_to_add.commands, edge)
             self.add_edge(edge)
@@ -721,7 +680,7 @@ class Spinnaker(SpynnakerConfiguration, SpynnakerCommsFunctions):
                       AbstractVertexWithEdgeToDependentVertices):
             for dependant_vertex in vertex_to_add.dependent_vertices:
                 self.add_vertex(dependant_vertex)
-                dependant_edge = AbstractPartitionableEdge(
+                dependant_edge = MultiCastPartitionableEdge(
                     pre_vertex=vertex_to_add, post_vertex=dependant_vertex)
                 self.add_edge(dependant_edge)
 
@@ -824,13 +783,6 @@ class Spinnaker(SpynnakerConfiguration, SpynnakerCommsFunctions):
 
     def stop(self, stop_on_board=True):
         if stop_on_board:
-            for router_table in self._router_tables.routing_tables:
-                if (not self._machine.get_chip_at(router_table.x,
-                                                  router_table.y).virtual and
-                        len(router_table.multicast_routing_entries) > 0):
-                    self._txrx.clear_router_diagnostic_counters(router_table.x,
-                                                                router_table.y)
-
             for ip_tag in self._tags.ip_tags:
                 self._txrx.clear_ip_tag(
                     ip_tag.tag, board_address=ip_tag.board_address)

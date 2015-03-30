@@ -56,11 +56,17 @@ static inline bool recording_channel_in_use(recording_channel_e channel)
 bool recording_data_filled(address_t address, uint8_t region_id, uint32_t flags, recording_channel_e channel, uint32_t size_bytes)
 {
   use(flags);
-  
+  if (size_bytes == 0)
+  {
+
+    // Channel is not enabled really
+    return true;
+  }
+
   if(recording_channel_in_use(channel))
   {
     log_info("Recording channel %u already configured", channel);
-    
+
     // CHANNEL already initialized
     return false;
   }
@@ -127,7 +133,7 @@ bool recording_record(recording_channel_e channel, void *data, uint32_t size_byt
   else
   {
     log_info("ERROR: recording channel %u not in use", channel);
-   
+
     return false;
   }
 
@@ -150,7 +156,7 @@ void recording_finalise()
       uint32_t num_bytes_written = recording_channel->current_write - recording_channel->start;
       log_info("\tFinalising channel %u - %x bytes of data starting at %08x", channel, num_bytes_written + sizeof(uint32_t), recording_channel->counter);
       *recording_channel->counter = num_bytes_written;
-    }	
+    }
   }
 }
 
