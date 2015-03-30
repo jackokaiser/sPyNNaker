@@ -93,7 +93,7 @@ void c_main (void)
   spin1_callback_on (DMA_TRANSFER_DONE,  dma_callback,             0);
   spin1_callback_on (USER_EVENT,         feed_dma_pipeline,        0);
   spin1_callback_on (TIMER_TICK,         timer_callback,           2);
-  //spin1_callback_on (SDP_PACKET_RX,      sdp_packet_callback,      1);
+  spin1_callback_on (SDP_PACKET_RX,      sdp_packet_callback,      1);
 
   log_info("Starting");
 

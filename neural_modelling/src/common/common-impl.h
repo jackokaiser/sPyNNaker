@@ -49,7 +49,7 @@ bool system_runs_to_completion();
 bool system_data_extracted();
 
 // Function declarations for recording.c
-bool recording_data_filled(address_t output_region, uint32_t flags, recording_channel_e channel, uint32_t size_bytes);
+bool recording_data_filled(address_t address, uint8_t region_id, uint32_t flags, recording_channel_e channel, uint32_t size_bytes);
 bool recording_record(recording_channel_e channel, void *data, uint32_t size_bytes);
 void recording_finalise();
 

@@ -111,7 +111,7 @@ bool spike_source_data_filled(address_t base_address, uint32_t flags, uint32_t s
     return (false);
   
   // Setup output recording regions
-  if (!recording_data_filled (region_start(3, base_address), flags, e_recording_channel_spike_history, spike_history_recording_region_size))
+  if (!recording_data_filled (base_address, 3, flags, e_recording_channel_spike_history, spike_history_recording_region_size))
     return (false);
   
   // If we have any spike blocks and the 1st spike block should be sent at the 1st timestep

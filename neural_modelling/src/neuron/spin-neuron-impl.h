@@ -148,6 +148,7 @@ void timer_callback (uint unused0, uint unused1);
 void dma_callback(uint unused, uint tag);
 void incoming_spike_callback (uint key, uint payload);
 void feed_dma_pipeline (uint unused0, uint unused1);
+void sdp_packet_callback(uint mailbox, uint port);
 
 // Function declarations for neuron.c
 void  neuron                (index_t n);

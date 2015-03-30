@@ -115,7 +115,7 @@ class AbstractPopulationDataSpec(AbstractSynapticManager,
 
     def write_setup_info(self, spec, spike_history_region_sz,
                          neuron_potential_region_sz, gsyn_region_sz,
-                         executable_constant):
+                         executable_constant, record_tag):
         """
         Write information used to control the simulation and gathering of
         results.Currently, this means the flag word used to signal whether
@@ -151,6 +151,7 @@ class AbstractPopulationDataSpec(AbstractSynapticManager,
         spec.write_value(data=spike_history_region_sz)
         spec.write_value(data=neuron_potential_region_sz)
         spec.write_value(data=gsyn_region_sz)
+        spec.write_value(data=record_tag)
 
     def write_neuron_parameters(self, spec, key, subvertex,
                                 ring_buffer_to_input_left_shifts,
@@ -260,8 +261,13 @@ class AbstractPopulationDataSpec(AbstractSynapticManager,
             spike_hist_buff_sz, potential_hist_buff_sz, gsyn_hist_buff_sz,
             stdp_region_sz)
 
+        record_tag = 0
+        if len(ip_tags) > 0:
+            record_tag = iter(ip_tags).next()
+
         self.write_setup_info(spec, spike_hist_buff_sz, potential_hist_buff_sz,
-                              gsyn_hist_buff_sz, self._executable_constant)
+                              gsyn_hist_buff_sz, self._executable_constant,
+                              record_tag)
 
         ring_buffer_shifts = self.get_ring_buffer_to_input_left_shifts(
             subvertex, subgraph, graph_mapper, self._spikes_per_second,

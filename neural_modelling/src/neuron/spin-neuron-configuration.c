@@ -37,13 +37,13 @@ bool system_load_dtcm ()
     return false;
 
   // Setup output recording regions
-  if (!recording_data_filled (region_start(7, address), flags, e_recording_channel_spike_history, spike_history_recording_region_size))
+  if (!recording_data_filled (address, 7, flags, e_recording_channel_spike_history, spike_history_recording_region_size))
     return (false);
 
-  if (!recording_data_filled (region_start(8, address), flags, e_recording_channel_neuron_potential, neuron_potentials_recording_region_size))
+  if (!recording_data_filled (address, 8, flags, e_recording_channel_neuron_potential, neuron_potentials_recording_region_size))
     return (false);
 
-  if (!recording_data_filled (region_start(9, address), flags, e_recording_channel_neuron_gsyn, neuron_gsyns_recording_region_size))
+  if (!recording_data_filled (address, 9, flags, e_recording_channel_neuron_gsyn, neuron_gsyns_recording_region_size))
     return (false);
 
 

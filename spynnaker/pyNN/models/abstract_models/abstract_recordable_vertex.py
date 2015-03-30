@@ -6,10 +6,12 @@ from spynnaker.pyNN import exceptions
 from spynnaker.pyNN.utilities.utility_calls \
     import get_region_base_address_offset
 from spynnaker.pyNN.utilities import constants
+from spynnaker.pyNN.utilities.conf import config
 
 from pacman.utilities import constants as pacman_constants
 from pacman.utilities.progress_bar import ProgressBar
-
+from pacman.model.constraints.tag_allocator_constraints.tag_allocator_require_iptag_constraint import \
+    TagAllocatorRequireIptagConstraint
 
 import logging
 import numpy
@@ -24,7 +26,7 @@ class AbstractRecordableVertex(object):
     Underlying AbstractConstrainedVertex model for Neural Applications.
     """
 
-    def __init__(self, machine_time_step, label):
+    def __init__(self, machine_time_step, label, address=None, port=None):
         self._record = False
         self._record_v = False
         self._record_gsyn = False
@@ -32,6 +34,19 @@ class AbstractRecordableVertex(object):
         self._app_mask = pacman_constants.DEFAULT_MASK
         self._label = label
         self._machine_time_step = machine_time_step
+        self._is_constraint_added = False
+
+        if address is None:
+            self._address = config.get(
+                "Buffers", "receive_buffer_host")
+        else:
+            self._address = address
+
+        if port is None:
+            self._port = config.getint(
+                "Buffers", "receive_buffer_port")
+        else:
+            self._port = port
 
     @property
     def machine_time_step(self):
@@ -48,6 +63,7 @@ class AbstractRecordableVertex(object):
         """
         method that sets the vertex to be recordable, """
         self._record = setted_value
+        self._add_ip_tag_constraint()
 
     @property
     def record_v(self):
@@ -59,13 +75,25 @@ class AbstractRecordableVertex(object):
 
     def set_record_v(self, setted_value):
         self._record_v = setted_value
+        self._add_ip_tag_constraint()
 
     def set_record_gsyn(self, setted_value):
         self._record_gsyn = setted_value
+        self._add_ip_tag_constraint()
 
     @abstractmethod
     def is_recordable(self):
         """helper method for is isinstance"""
+
+    @abstractmethod
+    def add_constraint(self, constraint):
+        """adding a constraint to the population vertex"""
+
+    def _add_ip_tag_constraint(self):
+        if not self._is_constraint_added:
+            self._is_constraint_added = True
+            self.add_constraint(TagAllocatorRequireIptagConstraint(
+                ip_address=self._address, port=self._port, strip_sdp=True))
 
     def get_recording_region_size(self, bytes_per_timestep):
         """

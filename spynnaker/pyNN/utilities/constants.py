@@ -12,7 +12,7 @@ POSSION_SIGMA_SUMMATION_LIMIT = 3.0
 # Single word of info with flags, etc.
 # plus the lengths of each of the output buffer
 # regions in bytes
-SETUP_SIZE = 28
+SETUP_SIZE = 32
 
 NO_PARAMS = 10
 PARAMS_HEADER_SIZE = 3  # Number of 32-bit words in header of params block
