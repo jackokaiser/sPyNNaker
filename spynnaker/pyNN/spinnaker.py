@@ -17,7 +17,8 @@ from pacman.operations.routing_info_allocator_algorithms.\
     basic_routing_info_allocator import BasicRoutingInfoAllocator
 from pacman.utilities.progress_bar import ProgressBar
 
-from spynnaker.pyNN.buffer_management.buffer_manager import BufferManager
+from spynnaker.pyNN.buffer_management.buffer_sending_from_host_manager \
+    import BufferSendingFromHostManager
 from spynnaker.pyNN.models.abstract_models.buffer_models\
     .abstract_sends_buffers_from_host_partitioned_vertex\
     import AbstractSendsBuffersFromHostPartitionedVertex
@@ -93,9 +94,9 @@ class Spinnaker(SpynnakerConfiguration, SpynnakerCommsFunctions):
             database_socket_addresses = list()
             listen_port = conf.config.getint("Database", "listen_port")
             notify_port = conf.config.getint("Database", "notify_port")
-            noftiy_hostname = conf.config.get("Database", "notify_hostname")
+            notify_hostname = conf.config.get("Database", "notify_hostname")
             database_socket_addresses.append(
-                SocketAddress(noftiy_hostname, notify_port, listen_port))
+                SocketAddress(notify_hostname, notify_port, listen_port))
         self._database_socket_addresses = database_socket_addresses
 
         if self._app_id is None:
@@ -308,12 +309,12 @@ class Spinnaker(SpynnakerConfiguration, SpynnakerCommsFunctions):
 
     def _set_up_send_buffering(self):
         progress_bar = ProgressBar(
-            len(self.partitionable_graph.vertices),
+            len(self.partitioned_graph.subvertices),
             "on initialising the buffer managers for vertices which require"
             " buffering")
 
         # Create the buffer manager
-        self._send_buffer_manager = BufferManager(
+        self._send_buffer_manager = BufferSendingFromHostManager(
             self._placements, self._routing_infos, self._tags, self._txrx)
 
         for partitioned_vertex in self.partitioned_graph.subvertices:

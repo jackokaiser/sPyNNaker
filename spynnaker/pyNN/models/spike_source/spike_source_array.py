@@ -4,7 +4,8 @@ from spynnaker.pyNN.exceptions import ConfigurationException
 from spynnaker.pyNN.models.abstract_models\
     .abstract_population_outgoing_edge_restrictor\
     import AbstractPopulationOutgoingEdgeRestrictor
-from spynnaker.pyNN.buffer_management.buffer_manager import BufferManager
+from spynnaker.pyNN.buffer_management.buffer_sending_from_host_manager \
+    import BufferSendingFromHostManager
 from spinnman.messages.eieio.command_messages.event_stop_request\
     import EventStopRequest
 from spynnaker.pyNN.models.abstract_models.abstract_data_specable_vertex \
@@ -151,7 +152,7 @@ class SpikeSourceArray(AbstractDataSpecableVertex,
             total_size = 0
             for timestamp in send_buffer.timestamps:
                 n_keys = send_buffer.get_n_keys(timestamp)
-                total_size += BufferManager.get_n_bytes(n_keys)
+                total_size += BufferSendingFromHostManager.get_n_bytes(n_keys)
             total_size += EventStopRequest.get_min_packet_length()
             if total_size > self._max_on_chip_memory_usage_for_spikes:
                 total_size = self._max_on_chip_memory_usage_for_spikes

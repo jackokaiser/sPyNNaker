@@ -151,7 +151,7 @@ class AbstractPopulationDataSpec(AbstractSynapticManager,
         spec.write_value(data=spike_history_region_sz)
         spec.write_value(data=neuron_potential_region_sz)
         spec.write_value(data=gsyn_region_sz)
-        spec.write_value(data=record_tag)
+        spec.write_value(data=record_tag.tag)
 
     def write_neuron_parameters(self, spec, key, subvertex,
                                 ring_buffer_to_input_left_shifts,

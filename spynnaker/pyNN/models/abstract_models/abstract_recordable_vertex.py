@@ -85,10 +85,6 @@ class AbstractRecordableVertex(object):
     def is_recordable(self):
         """helper method for is isinstance"""
 
-    @abstractmethod
-    def add_constraint(self, constraint):
-        """adding a constraint to the population vertex"""
-
     def _add_ip_tag_constraint(self):
         if not self._is_constraint_added:
             self._is_constraint_added = True
