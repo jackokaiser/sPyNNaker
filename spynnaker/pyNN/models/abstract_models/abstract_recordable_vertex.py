@@ -10,7 +10,8 @@ from spynnaker.pyNN.utilities.conf import config
 
 from pacman.utilities import constants as pacman_constants
 from pacman.utilities.progress_bar import ProgressBar
-from pacman.model.constraints.tag_allocator_constraints.tag_allocator_require_iptag_constraint import \
+from pacman.model.constraints.tag_allocator_constraints.\
+    tag_allocator_require_iptag_constraint import \
     TagAllocatorRequireIptagConstraint
 
 import logging

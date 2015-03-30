@@ -21,8 +21,6 @@ from spynnaker.pyNN.buffer_management.buffer_manager import BufferManager
 from spynnaker.pyNN.models.abstract_models.buffer_models\
     .abstract_sends_buffers_from_host_partitioned_vertex\
     import AbstractSendsBuffersFromHostPartitionedVertex
-from spynnaker.pyNN.buffer_management.buffer_sending_from_host_manager import \
-    BufferSendingFromHostManager
 from spynnaker.pyNN.models.abstract_models.abstract_virtual_vertex import \
     AbstractVirtualVertex
 from spynnaker.pyNN.models.abstract_models.abstract_provides_n_keys_for_edge\
