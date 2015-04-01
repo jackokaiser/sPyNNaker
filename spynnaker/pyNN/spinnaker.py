@@ -17,28 +17,6 @@ from pacman.operations.routing_info_allocator_algorithms.\
     basic_routing_info_allocator import BasicRoutingInfoAllocator
 from pacman.utilities.progress_bar import ProgressBar
 
-from spynnaker.pyNN.buffer_management.buffer_sending_from_host_manager \
-    import BufferSendingFromHostManager
-from spynnaker.pyNN.models.abstract_models.buffer_models\
-    .abstract_sends_buffers_from_host_partitioned_vertex\
-    import AbstractSendsBuffersFromHostPartitionedVertex
-from spynnaker.pyNN.models.abstract_models.abstract_virtual_vertex import \
-    AbstractVirtualVertex
-from spynnaker.pyNN.models.abstract_models.abstract_provides_n_keys_for_edge\
-    import AbstractProvidesNKeysForEdge
-from spynnaker.pyNN.models.abstract_models\
-    .abstract_provides_outgoing_edge_constraints \
-    import AbstractProvidesOutgoingEdgeConstraints
-from spynnaker.pyNN.models.abstract_models\
-    .abstract_provides_incoming_edge_constraints \
-    import AbstractProvidesIncomingEdgeConstraints
-from spynnaker.pyNN.models.abstract_models\
-    .abstract_send_me_multicast_commands_vertex \
-    import AbstractSendMeMulticastCommandsVertex
-from spynnaker.pyNN.models.abstract_models\
-    .abstract_vertex_with_dependent_vertices \
-    import AbstractVertexWithEdgeToDependentVertices
-
 # spinnmachine imports
 from spinn_machine.sdram import SDRAM
 from spinn_machine.router import Router as MachineRouter
@@ -66,6 +44,30 @@ from spynnaker.pyNN.overridden_pacman_functions.graph_edge_filter \
     import GraphEdgeFilter
 from spynnaker.pyNN.utilities.data_generator_interface import \
     DataGeneratorInterface
+from spynnaker.pyNN.buffer_management.buffer_handler import BufferHandler
+from spynnaker.pyNN.buffer_management.buffer_receiving_to_host_manager import \
+    BufferReceivingToHostManager
+from spynnaker.pyNN.buffer_management.buffer_sending_from_host_manager \
+    import BufferSendingFromHostManager
+from spynnaker.pyNN.models.abstract_models.buffer_models\
+    .abstract_sends_buffers_from_host_partitioned_vertex\
+    import AbstractSendsBuffersFromHostPartitionedVertex
+from spynnaker.pyNN.models.abstract_models.abstract_virtual_vertex import \
+    AbstractVirtualVertex
+from spynnaker.pyNN.models.abstract_models.abstract_provides_n_keys_for_edge\
+    import AbstractProvidesNKeysForEdge
+from spynnaker.pyNN.models.abstract_models\
+    .abstract_provides_outgoing_edge_constraints \
+    import AbstractProvidesOutgoingEdgeConstraints
+from spynnaker.pyNN.models.abstract_models\
+    .abstract_provides_incoming_edge_constraints \
+    import AbstractProvidesIncomingEdgeConstraints
+from spynnaker.pyNN.models.abstract_models\
+    .abstract_send_me_multicast_commands_vertex \
+    import AbstractSendMeMulticastCommandsVertex
+from spynnaker.pyNN.models.abstract_models\
+    .abstract_vertex_with_dependent_vertices \
+    import AbstractVertexWithEdgeToDependentVertices
 
 # spinnman imports
 from spinnman.model.core_subsets import CoreSubsets
@@ -137,8 +139,10 @@ class Spinnaker(SpynnakerConfiguration, SpynnakerCommsFunctions):
         self._binary_search_paths.append(binary_path)
         self._edge_count = 0
 
-        # Manager of buffered sending
+        # Network buffer handler and manager
+        self._buffer_handler = None
         self._send_buffer_manager = None
+        self._receive_buffer_manager = None
 
     def run(self, run_time):
         self._setup_interfaces(hostname=self._hostname)
@@ -313,9 +317,18 @@ class Spinnaker(SpynnakerConfiguration, SpynnakerCommsFunctions):
             "on initialising the buffer managers for vertices which require"
             " buffering")
 
-        # Create the buffer manager
+        # Create the receiving buffer handler
+        self._buffer_handler = BufferHandler(self._tags, self._txrx)
+
+        # Create the sending buffer manager
         self._send_buffer_manager = BufferSendingFromHostManager(
-            self._placements, self._routing_infos, self._tags, self._txrx)
+            self._placements, self._routing_infos, self._tags, self._txrx,
+            self._buffer_handler)
+
+        # Create the receiving buffer manager
+        self._receive_buffer_manager = BufferReceivingToHostManager(
+            self._placements, self._routing_infos, self._tags, self._txrx,
+            self._buffer_handler)
 
         for partitioned_vertex in self.partitioned_graph.subvertices:
             if isinstance(partitioned_vertex,

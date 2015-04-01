@@ -1,5 +1,4 @@
 import struct
-import threading
 import logging
 import traceback
 import math
@@ -63,7 +62,8 @@ class BufferSendingFromHostManager(AbstractBufferManager):
     """ Manager of send buffers
     """
 
-    def __init__(self, placements, routing_info, tags, transceiver):
+    def __init__(self, placements, routing_info, tags, transceiver,
+                 buffer_handler):
         """
 
         :param placements: The placements of the vertices
@@ -80,19 +80,13 @@ class BufferSendingFromHostManager(AbstractBufferManager):
         """
 
         AbstractBufferManager.__init__(
-            self, placements, routing_info, tags, transceiver)
-
-        # Set of (ip_address, port) that are being listened to for the tags
-        self._seen_tags = set()
+            self, placements, routing_info, tags, transceiver, buffer_handler)
 
         # Set of vertices with buffers to be sent
         self._sender_vertices = set()
 
         # Dictionary of sender vertex -> buffers sent
         self._sent_messages = dict()
-
-        # Lock to avoid multiple messages being processed at the same time
-        self._thread_lock = threading.Lock()
 
     def receive_buffer_command_message(self, packet):
         """ Handle an EIEIO command message for the buffers
@@ -101,26 +95,25 @@ class BufferSendingFromHostManager(AbstractBufferManager):
         :type packet:\
                     :py:class:`spinnman.messages.eieio.command_messages.eieio_command_message.EIEIOCommandMessage`
         """
-        with self._thread_lock:
-            if isinstance(packet, SpinnakerRequestBuffers):
-                vertex = self._placements.get_subvertex_on_processor(
-                    packet.x, packet.y, packet.p)
+        if isinstance(packet, SpinnakerRequestBuffers):
+            vertex = self._placements.get_subvertex_on_processor(
+                packet.x, packet.y, packet.p)
 
-                if vertex in self._sender_vertices:
-                    logger.debug("received packet sequence: {1:d}, "
-                                 "space available: {0:d}".format(
-                                     packet.space_available,
-                                     packet.sequence_no))
-                    try:
-                        self._send_messages(
-                            packet.space_available, vertex, packet.region_id,
-                            packet.sequence_no)
-                    except:
-                        traceback.print_exc()
-            else:
-                raise SpinnmanInvalidPacketException(
-                    packet.__class__,
-                    "The command packet is invalid for buffer management")
+            if vertex in self._sender_vertices:
+                logger.debug("received packet sequence: {1:d}, "
+                             "space available: {0:d}".format(
+                                 packet.space_available,
+                                 packet.sequence_no))
+                try:
+                    self._send_messages(
+                        packet.space_available, vertex, packet.region_id,
+                        packet.sequence_no)
+                except:
+                    traceback.print_exc()
+        else:
+            raise SpinnmanInvalidPacketException(
+                packet.__class__,
+                "The command packet is invalid for buffer management")
 
     def add_sender_vertex(self, vertex):
         """ Add a partitioned vertex into the managed list for vertices
@@ -132,13 +125,10 @@ class BufferSendingFromHostManager(AbstractBufferManager):
         """
         self._sender_vertices.add(vertex)
         tag = self._tags.get_ip_tags_for_vertex(vertex)[0]
-        if (tag.ip_address, tag.port) not in self._seen_tags:
-            self._seen_tags.add((tag.ip_address, tag.port))
-            self._transceiver.register_listener(
-                self.receive_buffer_command_message, tag.port,
-                constants.CONNECTION_TYPE.UDP_IPTAG,
-                constants.TRAFFIC_TYPE.EIEIO_COMMAND,
-                hostname=tag.ip_address)
+
+        # Register the listener for SpinnakerRequestBuffers packet type
+        self._buffer_handler.register_listener(
+            SpinnakerRequestBuffers, self.receive_buffer_command_message, tag)
 
     def load_initial_buffers(self):
         """ Load the initial buffers for the senders using mem writes
@@ -381,6 +371,6 @@ class BufferSendingFromHostManager(AbstractBufferManager):
             destination_chip_x=placement.x, destination_chip_y=placement.y,
             destination_cpu=placement.p, flags=SDPFlag.REPLY_NOT_EXPECTED,
             destination_port=1)
-        data = BufferManager._get_message_as_bytes(message)
+        data = BufferSendingFromHostManager._get_message_as_bytes(message)
         sdp_message = SDPMessage(sdp_header, data)
         self._transceiver.send_sdp_message(sdp_message)

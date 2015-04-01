@@ -1,4 +1,5 @@
 from spinnman import exceptions as spinnman_exceptions
+from spinnman import constants
 
 import threading
 import logging
@@ -8,12 +9,28 @@ logger = logging.getLogger(__name__)
 
 class BufferHandler(object):
 
-    def __init__(self):
-        self._thread_locks = dict()
-        self._registered_listeners = dict()
-        pass
+    def __init__(self, tags, transceiver):
+        self._tags = tags
+        self._transceiver = transceiver
 
-    def register_listener(self, class_listened, function):
+        # Set of (ip_address, port) that are being listened to for the tags
+        self._seen_tags = set()
+
+        # Lock to avoid multiple messages being processed at the same time
+        self._thread_locks = dict()
+
+        # Set of function listening on particular packet types
+        self._registered_listeners = dict()
+
+    def register_listener(self, class_listened, function, tag):
+        if (tag.ip_address, tag.port) not in self._seen_tags:
+            self._seen_tags.add((tag.ip_address, tag.port))
+            self._transceiver.register_listener(
+                self.receive_buffer_command_message, tag.port,
+                constants.CONNECTION_TYPE.UDP_IPTAG,
+                constants.TRAFFIC_TYPE.EIEIO_COMMAND,
+                hostname=tag.ip_address)
+
         if class_listened not in self._registered_listeners:
             self._registered_listeners[class_listened] = list([function])
             self._thread_locks[class_listened] = threading.Lock()
