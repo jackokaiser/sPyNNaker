@@ -413,6 +413,7 @@ void print_weight (index_t synapse_type, weight_t w)
 
 void print_ring_buffers (void)
 {
+/*
   counter_t d, n, t;
   bool empty;
 
@@ -441,6 +442,7 @@ void print_ring_buffers (void)
     }
   }
   printf ("-----------------------------------------------------------------\n");
+*/
 }
 
 void print_master_population (void)
@@ -483,6 +485,7 @@ void print_synaptic_rows (uint32_t* rows)
 
 void print_synaptic_row (synaptic_row_t synaptic_row)
 {
+/*
   printf ("\nSynaptic row, at address %08x Num plastic words:%u\n", (uint32_t)synaptic_row, plastic_size(synaptic_row));
   if (synaptic_row == NULL)
   {
@@ -519,6 +522,7 @@ void print_synaptic_row (synaptic_row_t synaptic_row)
   }
 
   printf ("----------------------------------------\n");
+*/
 }
 
 uint32_t* generate_synfire_chain(uint32_t* start, uint32_t delay, uint32_t p)

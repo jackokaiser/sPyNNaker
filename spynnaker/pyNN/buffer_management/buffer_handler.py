@@ -53,14 +53,3 @@ class BufferHandler(object):
             raise spinnman_exceptions.SpinnmanInvalidPacketException(
                     packet.__class__,
                     "The command packet is invalid for buffer management")
-
-        # with self._thread_lock:
-        #     if isinstance(packet, SpinnakerRequestBuffers):
-        #
-        #
-        #     elif isinstance(packet, SpinnakerRequestReadData):
-        #         pass
-        #     else:
-        #         raise spinnman_exceptions.SpinnmanInvalidPacketException(
-        #             packet.__class__,
-        #             "The command packet is invalid for buffer management")
