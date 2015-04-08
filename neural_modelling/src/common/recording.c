@@ -4,9 +4,6 @@
 // Standard includes
 #include <string.h>
 
-#define BUFFER_OPERATION_READ 0
-#define BUFFER_OPERATION_WRITE 1
-
 typedef uint16_t* eieio_msg_t;
 
 //---------------------------------------
@@ -27,13 +24,17 @@ typedef struct
 {
   uint16_t eieio_header_command;
   uint16_t chip_id;
-  uint8_t processor;
-  uint8_t pad1;
-  uint8_t channel_and_region;
+  uint8_t processor_and_requests;
   uint8_t sequence;
+} read_request_packet_header;
+
+typedef struct
+{
+  uint8_t channel;
+  uint8_t region;
   uint32_t start_address;
   uint32_t space_to_be_read;
-} read_req_packet_sdp_t;
+} read_request_packet_data;
 
 //---------------------------------------
 // Globals

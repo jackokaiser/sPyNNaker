@@ -1122,6 +1122,7 @@ void process_32_bit_packets (void* event_pointer,
   log_info("pkt_payload_prefix: %08x", pkt_payload_prefix);
   log_info("payload: %d", payload);
   log_info("pkt_payload_prefix_apply: %d", pkt_payload_prefix_apply);
+  log_info("payload_timestamp: %d", payload_timestamp);
 #endif
 
   if (!payload && !pkt_payload_prefix_apply)

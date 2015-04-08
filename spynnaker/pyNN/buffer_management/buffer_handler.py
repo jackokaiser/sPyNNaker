@@ -35,7 +35,9 @@ class BufferHandler(object):
             self._registered_listeners[class_listened] = list([function])
             self._thread_locks[class_listened] = threading.Lock()
         else:
-            self._registered_listeners[class_listened].append(function)
+            # Do not register twice the same listener function
+            if function not in self._registered_listeners[class_listened]:
+                self._registered_listeners[class_listened].append(function)
 
     def receive_buffer_command_message(self, packet):
         """ received a eieio message from the port which this manager manages

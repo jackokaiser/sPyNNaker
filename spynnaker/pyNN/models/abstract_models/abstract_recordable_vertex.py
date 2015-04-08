@@ -53,17 +53,15 @@ class AbstractRecordableVertex(object):
         return self._machine_time_step
 
     @property
+    def is_recording(self):
+        return self._record or self._record_v or self._record_gsyn
+
+    @property
     def record(self):
         """
         method to return if the vertex is set to be recorded
         """
         return self._record
-
-    def set_record(self, setted_value):
-        """
-        method that sets the vertex to be recordable, """
-        self._record = setted_value
-        self._add_ip_tag_constraint()
 
     @property
     def record_v(self):
@@ -72,6 +70,12 @@ class AbstractRecordableVertex(object):
     @property
     def record_gsyn(self):
         return self._record_gsyn
+
+    def set_record(self, setted_value):
+        """
+        method that sets the vertex to be recordable, """
+        self._record = setted_value
+        self._add_ip_tag_constraint()
 
     def set_record_v(self, setted_value):
         self._record_v = setted_value

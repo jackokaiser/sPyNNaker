@@ -10,8 +10,6 @@ class BufferedSendingRegion(object):
     def __init__(self):
         """
 
-        :param buffer_size: The size of the buffer for this region
-        :type buffer_size: int
         """
 
         # A dictionary of timestamp -> list of keys

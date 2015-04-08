@@ -271,8 +271,8 @@ class Spinnaker(SpynnakerConfiguration, SpynnakerCommsFunctions):
                     self._app_id)
                 logger.info("*** Loading executables ***")
                 self._load_executable_images(executable_targets, self._app_id)
-                logger.info("*** Loading buffers ***")
-                self._set_up_send_buffering()
+                logger.info("*** Setting buffered populations ***")
+                self._set_up_buffering()
 
             # end of entire loading setup
             if do_timing:
@@ -311,7 +311,7 @@ class Spinnaker(SpynnakerConfiguration, SpynnakerCommsFunctions):
         else:
             logger.info("*** No simulation requested: Stopping. ***")
 
-    def _set_up_send_buffering(self):
+    def _set_up_buffering(self):
         progress_bar = ProgressBar(
             len(self.partitioned_graph.subvertices),
             "on initialising the buffer managers for vertices which require"
@@ -331,12 +331,23 @@ class Spinnaker(SpynnakerConfiguration, SpynnakerCommsFunctions):
             self._buffer_handler)
 
         for partitioned_vertex in self.partitioned_graph.subvertices:
+            # If population requires buffers to inject spikes
             if isinstance(partitioned_vertex,
                           AbstractSendsBuffersFromHostPartitionedVertex):
 
-                # Add the vertex to the managed vertices
-                self._send_buffer_manager.add_sender_vertex(
+                # Add the vertex to the send managed vertices list
+                self._send_buffer_manager.add_sender_vertex(partitioned_vertex)
+
+            # If population requires sending buffers to host computer with
+            # simulation data
+            vertex = self._graph_mapper.get_vertex_from_subvertex(
+                partitioned_vertex)
+            if vertex.is_recording():
+
+                # Add the vertex to the receive managed vertices list
+                self._receive_buffer_manager.add_receiver_vertex(
                     partitioned_vertex)
+
             progress_bar.update()
         progress_bar.end()
 
