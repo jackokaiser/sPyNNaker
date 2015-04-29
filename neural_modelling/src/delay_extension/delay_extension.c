@@ -1,5 +1,5 @@
 #include "../common/neuron-typedefs.h"
-#include "../common/in_spikes.h"
+#include "../common/in_ap.h"
 
 #include <bit_field.h>
 #include <data_specification.h>
@@ -137,8 +137,8 @@ void incoming_spike_callback(uint key, uint payload) {
 
     log_debug("Received spike %x", key);
 
-    // If there was space to add spike to incoming spike queue
-    if (in_spikes_add_spike(key)) {
+    // If there was space to add action potential to incoming queue
+    if (in_ap_add(key)) {
         if (!processing_spikes) {
             processing_spikes = true;
             spin1_trigger_user_event(0, 0);
@@ -172,9 +172,9 @@ void spike_process(uint unused0, uint unused1) {
     // Zero all counters in current time slot
     memset(current_time_slot_spike_counters, 0, sizeof(uint8_t) * num_neurons);
 
-    // While there are any incoming spikes
-    spike_t s;
-    while (in_spikes_get_next_spike(&s)) {
+    // While there are any incoming action potentials
+    ap_t s;
+    while (in_ap_get_next(&s)) {
 
         // Mask out neuron id
         uint32_t neuron_id = _key_n(s);
@@ -275,8 +275,8 @@ void c_main(void) {
     // Start the time at "-1" so that the first tick will be 0
     time = UINT32_MAX;
 
-    // Initialize the incoming spike buffer
-    if (!in_spikes_initialize_spike_buffer(256)) {
+    // Initialize the incoming action potential buffer
+    if (!in_ap_initialize_buffer(256)) {
          rt_error(RTE_SWERR);
     }
 

@@ -1,9 +1,9 @@
 /*
- * in_spikes.c
+ * in_ap.c
  *
  *
  *  SUMMARY
- *    Incoming spike handling for SpiNNaker neural modelling
+ *    Incoming action potential handling for SpiNNaker neural modelling
  *
  *    The essential feature of the buffer used in this impementation is that it
  *    requires no critical-section interlocking --- PROVIDED THERE ARE ONLY TWO
@@ -41,11 +41,11 @@
  *
  */
 
-#include "in_spikes.h"
+#include "in_ap.h"
 
 #include <debug.h>
 
-static spike_t* buffer;
+static ap_t* buffer;
 static uint32_t buffer_size;
 
 static index_t output;
@@ -77,8 +77,8 @@ static inline bool non_full() {
     return (unallocated() > 0);
 }
 
-bool in_spikes_initialize_spike_buffer(uint32_t size) {
-    buffer = (spike_t *) sark_alloc(1, size * sizeof(spike_t));
+bool in_ap_initialize_buffer(uint32_t size) {
+    buffer = (ap_t *) sark_alloc(1, size * sizeof(ap_t));
     if (buffer == NULL) {
         log_error("Cannot allocate in spikes buffer");
         return false;
@@ -91,7 +91,7 @@ bool in_spikes_initialize_spike_buffer(uint32_t size) {
     return true;
 }
 
-uint32_t in_spikes_n_spikes_in_buffer() {
+uint32_t in_ap_n_spikes_in_buffer() {
     return allocated();
 }
 
@@ -99,11 +99,11 @@ uint32_t in_spikes_n_spikes_in_buffer() {
 
 #define next(a) do {(a) = peek_next(a);} while (false)
 
-bool in_spikes_add_spike(spike_t spike) {
+bool in_ap_add(ap_t ap) {
     bool success = non_full();
 
     if (success) {
-        buffer[input] = spike;
+        buffer[input] = ap;
         next(input);
     } else
         overflows++;
@@ -111,22 +111,22 @@ bool in_spikes_add_spike(spike_t spike) {
     return (success);
 }
 
-bool in_spikes_get_next_spike(spike_t* spike) {
+bool in_ap_get_next(ap_t* ap) {
     bool success = non_empty();
 
     if (success) {
         next(output);
-        *spike = buffer[output];
+        *ap = buffer[output];
     } else
         underflows++;
 
     return (success);
 }
 
-bool in_spikes_is_next_spike_equal(spike_t spike) {
+bool in_ap_is_next_key_equal(ap_t ap) {
     if (non_empty()) {
         uint32_t peek_output = peek_next(output);
-        if (buffer[peek_output] == spike) {
+        if (buffer[peek_output] == ap) {
             output = peek_output;
             return true;
         }
@@ -136,16 +136,16 @@ bool in_spikes_is_next_spike_equal(spike_t spike) {
 
 // The following two functions are used to access the locally declared
 // variables.
-counter_t in_spikes_get_n_buffer_overflows() {
+counter_t in_ap_get_n_buffer_overflows() {
     return (overflows);
 }
 
-counter_t in_spikes_get_n_buffer_underflows() {
+counter_t in_ap_get_n_buffer_underflows() {
     return (underflows);
 }
 
 #if LOG_LEVEL >= LOG_DEBUG
-void in_spikes_print_buffer() {
+void in_ap_print_buffer() {
     counter_t n = allocated();
     index_t a;
 
@@ -161,7 +161,7 @@ void in_spikes_print_buffer() {
     log_debug("------------------------------------------------\n");
 }
 #else // DEBUG
-void in_spikes_print_buffer() {
+void in_ap_print_buffer() {
     skip();
 }
 #endif // DEBUG

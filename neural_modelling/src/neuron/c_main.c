@@ -14,7 +14,7 @@
  *
  */
 
-#include "../common/in_spikes.h"
+#include "../common/in_ap.h"
 #include "neuron.h"
 #include "synapses.h"
 #include "spike_processing.h"
@@ -187,10 +187,10 @@ void timer_callback(uint timer_count, uint unused) {
         recording_finalise();
 
         // Check for buffer overflow
-        uint spike_buffer_overflows = in_spikes_get_n_buffer_overflows();
-        if (spike_buffer_overflows > 0) {
-            io_printf(IO_STD, "\tWarning - %d spike buffers overflowed\n",
-                    spike_buffer_overflows);
+        uint ap_buffer_overflows = in_ap_get_n_buffer_overflows();
+        if (ap_buffer_overflows > 0) {
+            io_printf(IO_STD, "\tWarning - %d action potential buffers overflowed\n",
+                    ap_buffer_overflows);
         }
 
         spin1_exit(0);

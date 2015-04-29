@@ -2,7 +2,7 @@
 #include "population_table.h"
 #include "synapse_row.h"
 #include "synapses.h"
-#include "../common/in_spikes.h"
+#include "../common/in_ap.h"
 #include <spin1_api.h>
 #include <debug.h>
 
@@ -21,9 +21,9 @@ typedef struct dma_buffer {
   // Address in SDRAM to write back plastic region to
   address_t sdram_writeback_address;
   
-  // Key of originating spike 
+  // Key of originating action/gradient potential 
   // (used to allow row data to be re-used for multiple spikes)
-  spike_t originating_spike;
+  key_t originating_key;
   
   // Row data
   uint32_t *row;
@@ -48,23 +48,23 @@ static uint32_t buffer_being_read;
 static inline void _setup_synaptic_dma_read() {
 
     // If there's more incoming spikes
-    spike_t spike;
+    ap_t ap;
     uint32_t setup_done = false;
-    while (!setup_done && in_spikes_get_next_spike(&spike)) {
-        log_debug("Checking for row for spike 0x%.8x\n", spike);
+    while (!setup_done && in_ap_get_next(&ap)) {
+        log_debug("Checking for row for action potential 0x%.8x\n", ap);
 
         // Decode spike to get address of destination synaptic row
         address_t row_address;
         size_t n_bytes_to_transfer;
 
-        if (population_table_get_address(spike, &row_address,
+        if (population_table_get_address(ap, &row_address,
                 &n_bytes_to_transfer)) {
 
             // Write the SDRAM address of the plastic region and the
             // Key of the originating spike to the beginning of dma buffer
             dma_buffer *next_buffer = &dma_buffers[next_buffer_to_fill];
             next_buffer->sdram_writeback_address = row_address + 1;
-            next_buffer->originating_spike = spike;
+            next_buffer->originating_key = ap;
 
             // Start a DMA transfer to fetch this synaptic row into current
             // buffer
@@ -115,7 +115,7 @@ void _multicast_packet_received_callback(uint key, uint payload) {
     log_debug("Received spike %x at %d, DMA Busy = %d", key, time, dma_busy);
 
     // If there was space to add spike to incoming spike queue
-    if (in_spikes_add_spike(key)) {
+    if (in_ap_add(key)) {
 
         // If we're not already processing synaptic dmas,
         // flag pipeline as busy and trigger a feed event
@@ -160,7 +160,7 @@ void _dma_complete_callback(uint unused, uint tag) {
         do {
             // Are there any more incoming spikes from the same pre-synaptic
             // neuron?
-            subsequent_spikes = in_spikes_is_next_spike_equal(current_buffer->originating_spike);
+            subsequent_spikes = in_ap_is_next_key_equal(current_buffer->originating_key);
 
             // Process synaptic row, writing it back if it's the last time
             // it's going to be processed
@@ -198,8 +198,8 @@ bool spike_processing_initialise(size_t row_max_n_words) {
     next_buffer_to_fill = 0;
     buffer_being_read = N_DMA_BUFFERS;
 
-    // Allocate incoming spike buffer
-    if (!in_spikes_initialize_spike_buffer(N_INCOMING_SPIKES)) {
+    // Allocate incoming action potential buffer
+    if (!in_ap_initialize_buffer(N_INCOMING_SPIKES)) {
         return false;
     }
 

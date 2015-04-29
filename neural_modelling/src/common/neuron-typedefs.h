@@ -15,59 +15,43 @@
 #include <common-typedefs.h>
 #include "maths-util.h"
 
-// Determine the type of a spike
-/*
- * defines a spike with either a pay load or not and implements the
- * functionality to extract the key and pay load in both cases. If the
- * spike is compiled as not having a pay load, the pay load will always be
- * returned as 0
- */
-#ifndef __SPIKE_T__
-
+// MC packets always have 32-bit keys and, optionally, 32-bit keyloads
+// **TODO** these are about as common as stuff gets - move up!
 typedef uint32_t key_t;
 typedef uint32_t payload_t;
 
-#ifdef SPIKES_WITH_PAYLOADS
+// Determine the type of an action potential
+#ifndef __AP_T__
 
-typedef uint64_t spike_t;
+// Action potential always consist of a key
+typedef key_t ap_t;
 
-//! \brief helper method to retrieve the key from a spike
-//! \param[in] s: the spike to get the key from
+#define __AP_T__
+#endif /*__AP_T__*/
+
+// Determine the type of a gradient potential
+#ifndef __GP_T__
+
+// Unlike action potentials, gradient potentials (gp) also require a payload
+typedef uint64_t gp_t;
+
+//! \brief helper method to retrieve the key from a gradient potential
+//! \param[in] gp: the gradient potential to get the key from
 //! \return key_t: the key from the spike
-static inline key_t spike_key(spike_t s) {
-    return ((key_t)(s >> 32));
+static inline key_t gp_key(gp_t gp) {
+    return ((key_t)(gp >> 32));
 }
 
-//! \brief helper method to retrieve the pay-load from a spike
-//! \param[in] s: the spike to get the pay-load from
-//! \return payload_t: the pay-load from the spike (only used if the model
-//! is compiled with SPIKES_WITH_PAYLOADS)
-static inline payload_t spike_payload (spike_t s) {
-    return ((payload_t)(s & UINT32_MAX));
+//! \brief helper method to retrieve the pay-load from a gradient potential
+//! \param[in] gp: the gradient potential to get the pay-load from
+//! \return payload_t: the pay-load from the gradient potential
+static inline payload_t gp_payload (gp_t gp) {
+    return ((payload_t)(gp & UINT32_MAX));
 }
 
-#else  /*SPIKES_WITHOUT_PAYLOADS*/
+#define __GP_T__
+#endif /*__GP_T__*/
 
-typedef uint32_t spike_t;
-
-//! \brief helper method to retrieve the key from a spike
-//! \param[in] s: the spike to get the key from
-//! \return key_t: the key from the spike
-static inline key_t spike_key(spike_t s) {
-    return (s);
-}
-
-//! \brief helper method to retrieve the pay-load from a spike
-//! \param[in] s: the spike to get the pay-load from
-//! \return payload_t: the pay-load from the spike (default-ly set to zero if
-//!                    the model is not compiled with SPIKES_WITH_PAYLOADS)
-
-static inline payload_t spike_payload(spike_t s) {
-    use(s);
-    return (0);
-}
-#endif /*SPIKES_WITH_PAYLOADS*/
-#endif /*__SPIKE_T__*/
 
 // The type of a synaptic row
 typedef address_t synaptic_row_t;

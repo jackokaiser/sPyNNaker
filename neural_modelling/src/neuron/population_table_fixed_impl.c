@@ -110,7 +110,7 @@ static inline key_t _key_p(key_t k) {
 
 //! \helpful method for converting a key with the field ranges of:
 //! [x][y][p][n] where x, y and p represent the x,y and p coordinate of the
-//! core that transmitted the spike and n represents the atom id which that
+//! core that transmitted the key and n represents the atom id which that
 //! core has spiked with.
 //! \param[in] k The key that needs translating
 //! \return the n field of the key (assuming the key is in the format
@@ -119,12 +119,12 @@ static inline key_t _key_n(key_t k) {
     return k & 0x7FF;
 }
 
-bool population_table_get_address(spike_t spike, address_t* row_address,
+bool population_table_get_address(key_t key, address_t* row_address,
                                   size_t* n_bytes_to_transfer) {
 
-    uint32_t table_index = _get_table_index(_key_x(spike), _key_y(spike),
-                                            _key_p(spike));
-    uint32_t neuron_id = _key_n(spike);
+    uint32_t table_index = _get_table_index(_key_x(key), _key_y(key),
+                                            _key_p(key));
+    uint32_t neuron_id = _key_n(key);
 
     check((table_index < MASTER_POPULATION_MAX),
           "0 <= population_id (%u) < %u", table_index,

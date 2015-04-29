@@ -14,18 +14,18 @@
 //    underflows: a counter for the number of times the buffer underflows
 //
 // If underflows is ever non-zero, then there is a problem with this code.
-bool in_spikes_initialize_spike_buffer(uint32_t size);
+bool in_ap_initialize_buffer(uint32_t size);
 
-bool in_spikes_add_spike(spike_t spike);
+bool in_ap_add(ap_t ap);
 
-bool in_spikes_get_next_spike(spike_t* spike);
+bool in_ap_get_next(ap_t* ap);
 
-bool in_spikes_is_next_spike_equal(spike_t spike);
+bool in_ap_is_next_key_equal(ap_t ap);
 
-counter_t in_spikes_get_n_buffer_overflows();
+counter_t in_ap_get_n_buffer_overflows();
 
-counter_t in_spikes_get_n_buffer_underflows();
+counter_t in_ap_get_n_buffer_underflows();
 
-void in_spikes_print_buffer();
+void in_ap_print_buffer();
 
 #endif // _IN_SPIKES_H_
