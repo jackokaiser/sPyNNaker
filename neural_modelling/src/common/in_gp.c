@@ -1,9 +1,9 @@
 /*
- * in_ap.c
+ * in_gp.c
  *
  *
  *  SUMMARY
- *    Incoming action potential handling for SpiNNaker neural modelling
+ *    Incoming gradient potential handling for SpiNNaker neural modelling
  *
  *    The essential feature of the buffer used in this impementation is that it
  *    requires no critical-section interlocking --- PROVIDED THERE ARE ONLY TWO
@@ -41,11 +41,11 @@
  *
  */
 
-#include "in_ap.h"
+#include "in_gp.h"
 
 #include <debug.h>
 
-static ap_t* buffer;
+static gp_t* buffer;
 static uint32_t buffer_size;
 
 static index_t output;
@@ -77,10 +77,10 @@ static inline bool non_full() {
     return (unallocated() > 0);
 }
 
-bool in_ap_initialize_buffer(uint32_t size) {
-    buffer = (ap_t *) sark_alloc(1, size * sizeof(ap_t));
+bool in_gp_initialize_buffer(uint32_t size) {
+    buffer = (gp_t*) sark_alloc(1, size * sizeof(gp_t));
     if (buffer == NULL) {
-        log_error("Cannot allocate in spikes buffer");
+        log_error("Cannot allocate in gradient potential buffer");
         return false;
     }
     buffer_size = size;
@@ -91,7 +91,7 @@ bool in_ap_initialize_buffer(uint32_t size) {
     return true;
 }
 
-uint32_t in_ap_n_spikes_in_buffer() {
+uint32_t in_gp_n_in_buffer() {
     return allocated();
 }
 
@@ -99,11 +99,11 @@ uint32_t in_ap_n_spikes_in_buffer() {
 
 #define next(a) do {(a) = peek_next(a);} while (false)
 
-bool in_ap_add(ap_t ap) {
+bool in_gp_add(gp_t gp) {
     bool success = non_full();
 
     if (success) {
-        buffer[input] = ap;
+        buffer[input] = gp;
         next(input);
     } else
         overflows++;
@@ -111,22 +111,22 @@ bool in_ap_add(ap_t ap) {
     return (success);
 }
 
-bool in_ap_get_next(ap_t* ap) {
+bool in_gp_get_next(gp_t* gp) {
     bool success = non_empty();
 
     if (success) {
         next(output);
-        *ap = buffer[output];
+        *gp = buffer[output];
     } else
         underflows++;
 
     return (success);
 }
 
-bool in_ap_is_next_key_equal(key_t key) {
+bool in_gp_is_next_key_equal(key_t key) {
     if (non_empty()) {
         uint32_t peek_output = peek_next(output);
-        if (buffer[peek_output] == key) {
+        if (gp_key(buffer[peek_output]) == key) {
             output = peek_output;
             return true;
         }
@@ -136,16 +136,16 @@ bool in_ap_is_next_key_equal(key_t key) {
 
 // The following two functions are used to access the locally declared
 // variables.
-counter_t in_ap_get_n_buffer_overflows() {
+counter_t in_gp_get_n_buffer_overflows() {
     return (overflows);
 }
 
-counter_t in_ap_get_n_buffer_underflows() {
+counter_t in_gp_get_n_buffer_underflows() {
     return (underflows);
 }
 
 #if LOG_LEVEL >= LOG_DEBUG
-void in_ap_print_buffer() {
+void in_gp_print_buffer() {
     counter_t n = allocated();
     index_t a;
 
@@ -155,13 +155,14 @@ void in_ap_print_buffer() {
 
     for (; n > 0; n--) {
         a = (input + n) % buffer_size;
-        log_debug("  %3u: %08x\n", a, buffer[a]);
+        log_debug("  %3u: key:%08x, payload:%08x\n", 
+                  a, gp_key(buffer[a]), gp_payload(buffer[a]));
     }
 
     log_debug("------------------------------------------------\n");
 }
 #else // DEBUG
-void in_ap_print_buffer() {
+void in_gp_print_buffer() {
     skip();
 }
 #endif // DEBUG

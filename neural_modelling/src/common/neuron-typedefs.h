@@ -35,6 +35,14 @@ typedef key_t ap_t;
 // Unlike action potentials, gradient potentials (gp) also require a payload
 typedef uint64_t gp_t;
 
+//! \brief helper method to create a gradient potential from a key and a payload
+//! \param[in] key: key of gradient potential
+//! \param[in] payload: payload of gradient potential
+//! \return gp_t: the complete gradient potential
+static inline gp_t gp_create(key_t key, payload_t payload) {
+    return (((gp_t)key) << 32) | (gp_t)(payload & UINT32_MAX);
+}
+
 //! \brief helper method to retrieve the key from a gradient potential
 //! \param[in] gp: the gradient potential to get the key from
 //! \return key_t: the key from the spike

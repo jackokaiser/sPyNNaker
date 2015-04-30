@@ -3,6 +3,7 @@
 #include "synapse_row.h"
 #include "synapses.h"
 #include "../common/in_ap.h"
+#include "../common/in_gp.h"
 #include <spin1_api.h>
 #include <debug.h>
 
@@ -10,7 +11,8 @@
 #define N_DMA_BUFFERS 2
 
 // The number of spaces in the incoming spike buffer
-#define N_INCOMING_SPIKES 256
+#define N_INCOMING_APS 256
+#define N_INCOMING_GPS 128
 
 // DMA tags
 #define DMA_TAG_READ_SYNAPTIC_ROW 0
@@ -18,12 +20,18 @@
 
 // DMA buffer structure combines the row read from SDRAM with 
 typedef struct dma_buffer {
+  // Does this DMA originate from a gradient potential or an action potential
+  bool originating_gp_not_ap;
+  
   // Address in SDRAM to write back plastic region to
   address_t sdram_writeback_address;
   
   // Key of originating action/gradient potential 
   // (used to allow row data to be re-used for multiple spikes)
   key_t originating_key;
+  
+  // Payload of originating gradient potential payload
+  payload_t gp_payload;
   
   // Row data
   uint32_t *row;
@@ -44,46 +52,79 @@ static uint32_t next_buffer_to_fill;
 static uint32_t buffer_being_read;
 
 /* PRIVATE FUNCTIONS - static for inlining */
+static inline bool _attempt_synaptic_dma_read(key_t key, payload_t *payload) {
+    // Decode spike to get address of destination synaptic row
+    address_t row_address;
+    size_t n_bytes_to_transfer;
+    if (population_table_get_address(key, &row_address,
+            &n_bytes_to_transfer)) {
 
+        // Write the SDRAM address of the plastic region and the
+        // Key of the originating spike to the beginning of dma buffer
+        dma_buffer *next_buffer = &dma_buffers[next_buffer_to_fill];
+        next_buffer->sdram_writeback_address = row_address + 1;
+        next_buffer->originating_key = key;
+    
+        // If a payload is specified, copy it into next  
+        // Buffer and set gradient potential flag
+        if(payload != NULL) {
+            next_buffer->originating_gp_not_ap = true;
+            next_buffer->gp_payload = *payload;
+        }
+        // Otherwise, clear gradient potential flag
+        else {
+            next_buffer->originating_gp_not_ap = false;
+        }
+        
+        // Start a DMA transfer to fetch this synaptic row into current buffer
+        buffer_being_read = next_buffer_to_fill;
+        spin1_dma_transfer(DMA_TAG_READ_SYNAPTIC_ROW, row_address,
+                            next_buffer->row,
+                            DMA_READ, n_bytes_to_transfer);
+        next_buffer_to_fill = (next_buffer_to_fill + 1) % N_DMA_BUFFERS;
+
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
 static inline void _setup_synaptic_dma_read() {
-
-    // If there's more incoming spikes
-    ap_t ap;
-    uint32_t setup_done = false;
-    while (!setup_done && in_ap_get_next(&ap)) {
-        log_debug("Checking for row for action potential 0x%.8x\n", ap);
-
-        // Decode spike to get address of destination synaptic row
-        address_t row_address;
-        size_t n_bytes_to_transfer;
-
-        if (population_table_get_address(ap, &row_address,
-                &n_bytes_to_transfer)) {
-
-            // Write the SDRAM address of the plastic region and the
-            // Key of the originating spike to the beginning of dma buffer
-            dma_buffer *next_buffer = &dma_buffers[next_buffer_to_fill];
-            next_buffer->sdram_writeback_address = row_address + 1;
-            next_buffer->originating_key = ap;
-
-            // Start a DMA transfer to fetch this synaptic row into current
-            // buffer
-            buffer_being_read = next_buffer_to_fill;
-            spin1_dma_transfer(DMA_TAG_READ_SYNAPTIC_ROW, row_address,
-                               next_buffer->row,
-                               DMA_READ, n_bytes_to_transfer);
-            next_buffer_to_fill = (next_buffer_to_fill + 1) % N_DMA_BUFFERS;
-
-            setup_done = true;
+    
+    while(true)
+    {
+        // If there's an action potential in the queue
+        ap_t ap;
+        gp_t gp;
+        if(in_ap_get_next(&ap))
+        {
+          log_debug("Checking for row for action potential 0x%.8x\n", ap);
+          if(_attempt_synaptic_dma_read(ap, NULL))
+          {
+            return;
+          }
+        }
+        // Otherwise, if there's a gradient potential in the queue
+        else if(in_gp_get_next(&gp))
+        {
+          log_debug("Checking for row for gradient potential key 0x%.8x\n", gp_key(gp));
+          payload_t payload = gp_payload(gp);
+          if(_attempt_synaptic_dma_read(gp_key(gp), &payload))
+          {
+            return;
+          }
+        }
+        // Otherwise,
+        else
+        {
+          break;
         }
     }
-
-    // If the setup was not done, and there are no more spikes,
-    // stop trying to set up synaptic dmas
-    if (!setup_done) {
-        log_debug("DMA not busy");
-        dma_busy = false;
-    }
+    
+    // No more spikes - stop trying to set up synaptic dmas 
+    log_debug("DMA not busy");
+    dma_busy = false;
 }
 
 static inline void _setup_synaptic_dma_write(uint32_t dma_buffer_index) {
@@ -112,16 +153,16 @@ static inline void _setup_synaptic_dma_write(uint32_t dma_buffer_index) {
 void _multicast_packet_received_callback(uint key, uint payload) {
     use(payload);
 
-    log_debug("Received spike %x at %d, DMA Busy = %d", key, time, dma_busy);
+    log_debug("Received action potential %x at %d, DMA Busy = %d", key, time, dma_busy);
 
-    // If there was space to add spike to incoming spike queue
+    // If there was space to add action potential to incoming queue
     if (in_ap_add(key)) {
 
         // If we're not already processing synaptic dmas,
         // flag pipeline as busy and trigger a feed event
         if (!dma_busy) {
 
-            log_debug("Sending user event for new spike");
+            log_debug("Sending user event for new action potential");
             if (spin1_trigger_user_event(0, 0)) {
                 dma_busy = true;
             } else {
@@ -129,7 +170,30 @@ void _multicast_packet_received_callback(uint key, uint payload) {
             }
         }
     } else {
-        log_debug("Could not add spike");
+        log_debug("Could not add action potential");
+    }
+}
+
+void _multicast_payload_packet_received_callback(uint key, uint payload) {
+  log_debug("Received gradient potential %x:%x at %d, DMA Busy = %d", 
+            key, payload, time, dma_busy);
+
+    // If there was space to add gradient potential to incoming queue
+    if (in_gp_add(gp_create(key, payload))) {
+
+        // If we're not already processing synaptic dmas,
+        // flag pipeline as busy and trigger a feed event
+        if (!dma_busy) {
+
+            log_debug("Sending user event for new action potential");
+            if (spin1_trigger_user_event(0, 0)) {
+                dma_busy = true;
+            } else {
+                log_debug("Could not trigger user event\n");
+            }
+        }
+    } else {
+        log_debug("Could not add action potential");
     }
 }
 
@@ -158,10 +222,18 @@ void _dma_complete_callback(uint unused, uint tag) {
         // Process synaptic row repeatedly
         bool subsequent_spikes;
         do {
-            // Are there any more incoming spikes from the same pre-synaptic
-            // neuron?
-            subsequent_spikes = in_ap_is_next_key_equal(current_buffer->originating_key);
-
+            // If row fetch was started by a gradient potential, check if next 
+            // Gradient potential originates from the same source neuron
+            if(current_buffer->originating_gp_not_ap)
+            {
+                subsequent_spikes = in_gp_is_next_key_equal(current_buffer->originating_key);
+            }
+            // Otherwise, check if next action potential originates from the same source neuron
+            else
+            {
+                subsequent_spikes = in_ap_is_next_key_equal(current_buffer->originating_key);
+            }
+            
             // Process synaptic row, writing it back if it's the last time
             // it's going to be processed
             synapses_process_synaptic_row(time, current_buffer->row,
@@ -198,14 +270,20 @@ bool spike_processing_initialise(size_t row_max_n_words) {
     next_buffer_to_fill = 0;
     buffer_being_read = N_DMA_BUFFERS;
 
-    // Allocate incoming action potential buffer
-    if (!in_ap_initialize_buffer(N_INCOMING_SPIKES)) {
+    // Allocate incoming action and graded potential buffers
+    if (!in_ap_initialize_buffer(N_INCOMING_APS)) {
+        return false;
+    }
+    
+    if (!in_gp_initialize_buffer(N_INCOMING_GPS)) {
         return false;
     }
 
     // Set up the callbacks
     spin1_callback_on(MC_PACKET_RECEIVED,
             _multicast_packet_received_callback, -1);
+    spin1_callback_on(MCPL_PACKET_RECEIVED,
+            _multicast_payload_packet_received_callback, -1);
     spin1_callback_on(DMA_TRANSFER_DONE, _dma_complete_callback, 0);
     spin1_callback_on(USER_EVENT, _user_event_callback, 0);
 
