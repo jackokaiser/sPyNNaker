@@ -173,7 +173,7 @@ void neuron_do_timestep_update(timer_t time) {
             // Send the spike
             payload_t payload = gp_accum_to_payload(graded_potential);
             while (use_key &&
-                   !spin1_send_mc_packet(key | neuron_index, payload, PAYLOAD)) {
+                   !spin1_send_mc_packet(key | neuron_index, payload, WITH_PAYLOAD)) {
                 spin1_delay_us(1);
             }
 #else
