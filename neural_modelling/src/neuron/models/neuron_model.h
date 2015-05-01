@@ -36,10 +36,17 @@ static input_t neuron_model_convert_input(input_t input);
 //! used for ac, noisy input etc etc. (general purpose input)
 //! \param[in] neuron the pointer to a neuron parameter struct which contains
 //! all the parameters for a specific neuron
-//! \return bool which states if the neuron model was successful in updating
-//! its state
+//! \return bool which specifies whether after this update, the neuron should
+//! generate output
 bool neuron_model_state_update(input_t exc_input, input_t inh_input,
                                input_t external_bias, neuron_pointer_t neuron);
+
+//! \brief gets graded potential for current simulation step 
+//! (for neurons which emit these rather than action potentials)
+//! \param[in] neuron the pointer to a neuron parameter struct which contains
+//! all the parameters for a specific neuron
+//! \return REAL which specifies the graded potential in in the interval (0,1)
+REAL neuron_model_get_graded_potential(neuron_pointer_t neuron);
 
 //! \brief get the neuron membrane voltage for a given neuron parameter set
 //! \param[in] neuron a pointer to a neuron parameter struct which contains

@@ -144,7 +144,7 @@ void neuron_do_timestep_update(timer_t time) {
             synapse_dynamics_get_intrinsic_bias(neuron_index);
 
         // update neuron parameters (will inform us if the neuron should spike)
-        bool spike = neuron_model_state_update(
+        bool generate_output = neuron_model_state_update(
             exc_neuron_input, inh_neuron_input, external_bias, neuron);
 
         // If we should be recording potential, record this neuron parameter
@@ -164,9 +164,22 @@ void neuron_do_timestep_update(timer_t time) {
         }
 
         // If the neuron has spiked
-        if (spike) {
-            log_debug("the neuron %d has been determined to spike",
+        if (generate_output) {
+#ifdef NEURON_GRADIENT_POTENTIAL
+            REAL graded_potential = neuron_model_get_graded_potential(neuron);
+            log_debug("the neuron %d is emitting a gradient potential %k",
+                      neuron_index, graded_potential);
+            
+            // Send the spike
+            payload_t payload = gp_accum_to_payload(graded_potential);
+            while (use_key &&
+                   !spin1_send_mc_packet(key | neuron_index, payload, PAYLOAD)) {
+                spin1_delay_us(1);
+            }
+#else
+            log_debug("the neuron %u is emitting an action potential",
                       neuron_index);
+            
             // Do any required synapse processing
             synapse_dynamics_process_post_synaptic_event(time, neuron_index);
 
@@ -178,6 +191,7 @@ void neuron_do_timestep_update(timer_t time) {
                    !spin1_send_mc_packet(key | neuron_index, 0, NO_PAYLOAD)) {
                 spin1_delay_us(1);
             }
+#endif  // NEURON_GRADIENT_POTENTIAL
         } else {
             log_debug("the neuron %d has been determined to not spike",
                       neuron_index);

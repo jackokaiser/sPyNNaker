@@ -57,6 +57,11 @@ static inline payload_t gp_payload (gp_t gp) {
     return ((payload_t)(gp & UINT32_MAX));
 }
 
+static inline payload_t gp_accum_to_payload(accum a) {
+    union { payload_t p; accum a;} x; 
+    x.a = a; 
+    return (x.p); 
+}
 #define __GP_T__
 #endif /*__GP_T__*/
 
@@ -67,9 +72,8 @@ typedef address_t synaptic_row_t;
 // The type of an input
 typedef REAL input_t;
 
-
-
 // The type of a state variable
 typedef REAL state_t;
+
 
 #endif /* __NEURON_TYPEDEFS_H__ */
