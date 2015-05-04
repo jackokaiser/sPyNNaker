@@ -46,10 +46,7 @@ STDP_TIMING_DEPENDENCE += $(BUILD_DIR)neuron/plasticity/stdp/timing_dependence/t
                           $(BUILD_DIR)neuron/plasticity/stdp/timing_dependence/timing_pair_impl.o \
                           $(BUILD_DIR)neuron/plasticity/stdp/timing_dependence/timing_pfister_triplet_impl.o
 
-# Hash application name
-APPLICATION_NAME_HASH = 0x$(shell echo -n "$(APP)" | md5sum | head --bytes=-28)
-
-CFLAGS += -D$(SYNAPSE_BENCHMARK) -DAPPLICATION_NAME_HASH=$(APPLICATION_NAME_HASH)
+CFLAGS += -D$(SYNAPSE_BENCHMARK)
 
 include ../../../Makefile.common
 
