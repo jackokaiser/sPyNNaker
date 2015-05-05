@@ -341,6 +341,60 @@ void synapses_process_synaptic_row(uint32_t time, synaptic_row_t row,
     //}
 }
 
+
+void synapses_process_gp_synaptic_row(uint32_t time, synaptic_row_t row,
+                                      payload_t gradient_potential) {
+    _print_synaptic_row(row);
+   
+    // Get address of non-plastic region from row
+    address_t fixed_region_address = synapse_row_fixed_region(row);
+    
+    register uint32_t *synaptic_words = synapse_row_fixed_weight_controls(
+        fixed_region_address);
+    register uint32_t fixed_synapse = synapse_row_num_fixed_synapses(
+        fixed_region_address);
+
+#ifdef SYNAPSE_BENCHMARK
+    num_fixed_pre_synaptic_events += fixed_synapse;
+#endif // SYNAPSE_BENCHMARK
+
+    for (; fixed_synapse > 0; fixed_synapse--) {
+
+        // Get the next 32 bit word from the synaptic_row
+        // (should autoincrement pointer in single instruction)
+        uint32_t synaptic_word = *synaptic_words++;
+
+        // Extract components from this word
+        uint32_t delay = synapse_row_sparse_delay(synaptic_word);
+        uint32_t combined_synapse_neuron_index = synapse_row_sparse_type_index(
+                synaptic_word);
+        
+        // Extract weight, multiply by gradient potential
+        // And shift down by 15 to convert into weight format
+        uint32_t weight = (synapse_row_sparse_weight(synaptic_word) * gradient_potential) >> 15;
+
+        // Convert into ring buffer offset
+        uint32_t ring_buffer_index = synapses_get_ring_buffer_index_combined(
+            delay + time, combined_synapse_neuron_index);
+
+        // Add weight to current ring buffer value
+        uint32_t accumulation = ring_buffers[ring_buffer_index] + weight;
+
+        // If 17th bit is set, saturate accumulator at UINT16_MAX (0xFFFF)
+        // **NOTE** 0x10000 can be expressed as an ARM literal,
+        //          but 0xFFFF cannot.  Therefore, we use (0x10000 - 1)
+        //          to obtain this value
+        uint32_t sat_test = accumulation & 0x10000;
+        if (sat_test) {
+            accumulation = sat_test - 1;
+            saturation_count += 1;
+        }
+
+        // Store saturated value back in ring-buffer
+        ring_buffers[ring_buffer_index] = accumulation;
+    }
+}
+
 void synapses_print_saturation_count() {
     if (saturation_count > 0) {
         log_warning("Ring buffer saturation events: %d\n", saturation_count);

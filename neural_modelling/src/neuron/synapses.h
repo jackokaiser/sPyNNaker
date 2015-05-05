@@ -54,6 +54,9 @@ void synapses_do_timestep_update(timer_t time);
 void synapses_process_synaptic_row(uint32_t time, synaptic_row_t row,
                                    bool write, uint32_t process_id);
 
+void synapses_process_gp_synaptic_row(uint32_t time, synaptic_row_t row,
+                                      payload_t gradient_potential);
+
 void synapses_print_saturation_count();
 
 //! \either prints the counters for plastic and fixed pre synaptic events based

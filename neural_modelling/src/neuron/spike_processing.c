@@ -227,18 +227,22 @@ void _dma_complete_callback(uint unused, uint tag) {
             if(current_buffer->originating_gp_not_ap)
             {
                 subsequent_spikes = in_gp_is_next_key_equal(current_buffer->originating_key);
+                
+                synapses_process_gp_synaptic_row(time, current_buffer->row, current_buffer->gp_payload);
             }
             // Otherwise, check if next action potential originates from the same source neuron
             else
             {
                 subsequent_spikes = in_ap_is_next_key_equal(current_buffer->originating_key);
+                
+                // Process synaptic row, writing it back if it's 
+                // The last time it's going to be processed
+                synapses_process_synaptic_row(time, current_buffer->row,
+                                              !subsequent_spikes,
+                                              current_buffer_index);
             }
             
-            // Process synaptic row, writing it back if it's the last time
-            // it's going to be processed
-            synapses_process_synaptic_row(time, current_buffer->row,
-                                          !subsequent_spikes,
-                                          current_buffer_index);
+            
         } while (subsequent_spikes);
 
     } else if (tag == DMA_TAG_WRITE_PLASTIC_REGION) {
