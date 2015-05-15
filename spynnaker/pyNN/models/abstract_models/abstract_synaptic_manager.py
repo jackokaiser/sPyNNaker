@@ -46,15 +46,19 @@ class AbstractSynapticManager(AbstractProvidesIncomingEdgeConstraints):
     a synaptic manager that handles synatpic matrix's and master pops
     """
 
-    def __init__(self, master_pop_algorithm=None):
+    def __init__(
+            self, master_pop_algorithm=None, synaptic_matrix_algorithm=None):
         self._stdp_checked = False
         self._stdp_mechanism = None
         self._master_pop_table_generator = None
+        self._synaptic_matrix_algorithm = None
 
         if master_pop_algorithm is None:
             master_pop_algorithm = \
                 "MasterPopTableAs" + \
                 conf.config.get("MasterPopTable", "generator")
+        if synaptic_matrix_algorithm is None:
+
 
         algorithum_list = \
             helpful_functions.get_valid_components(master_pop_table_generators,

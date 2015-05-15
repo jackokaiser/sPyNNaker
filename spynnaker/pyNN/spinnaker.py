@@ -161,6 +161,10 @@ class Spinnaker(FrontEndCommonConfigurationFunctions,
 
             # set up exeuctable specifics
             self._set_up_executable_specifics()
+
+            # compression algorithum
+            self._compression_algorithm = config.get("DataCompression", "algorithm")
+
             self._set_up_report_specifics(
                 default_report_file_path=config.get(
                     "Reports", "defaultReportFilePath"),
@@ -308,9 +312,11 @@ class Spinnaker(FrontEndCommonConfigurationFunctions,
             self._database_interface.send_read_notification()
 
         # execute data spec generation
+        logger.info("*** Generating Output *** ")
+
         if do_timing:
             timer.start_timing()
-        logger.info("*** Generating Output *** ")
+
         logger.debug("")
         executable_targets = self.generate_data_specifications()
         if do_timing:
@@ -330,6 +336,7 @@ class Spinnaker(FrontEndCommonConfigurationFunctions,
         if self._reports_states is not None:
             reports.write_memory_map_report(self._report_default_directory,
                                             processor_to_app_data_base_address)
+        return executable_targets, processor_to_app_data_base_address
 
         if do_timing:
             timer.take_sample()
@@ -777,8 +784,6 @@ class Spinnaker(FrontEndCommonConfigurationFunctions,
         :return:
         """
 
-        # iterate though subvertexes and call generate_data_spec for each
-        # vertex
         executable_targets = dict()
         no_processors = config.getint("Threading", "dsg_threads")
         thread_pool = ThreadPool(processes=no_processors)
@@ -805,7 +810,7 @@ class Spinnaker(FrontEndCommonConfigurationFunctions,
                     self._routing_infos, self._hostname, self._graph_mapper,
                     self._report_default_directory, ip_tags, reverse_ip_tags,
                     self._writeTextSpecs, self._app_data_runtime_folder,
-                    progress_bar)
+                    progress_bar, self._compression_algorithm)
                 data_generator_interfaces.append(data_generator_interface)
                 thread_pool.apply_async(data_generator_interface.start)
 
